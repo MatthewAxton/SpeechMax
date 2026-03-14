@@ -89,12 +89,11 @@ function NotFound() {
    EVERYTHING BELOW IS YOUR ORIGINAL HOMEPAGE — UNCHANGED
    ==================================================================== */
 
-export type Screen = 'splash' | 'goal'
+export type Screen = 'splash'
 
 // Mascot positions for each screen
 const mascotPositions: Record<Screen, { x: string; y: string; size: number; gif: string }> = {
   splash: { x: '50%', y: '50%', size: 256, gif: '/IDLE.gif' },
-  goal: { x: '15%', y: '12%', size: 96, gif: '/TALKING_1.gif' },
 }
 
 function Homepage() {
@@ -102,8 +101,8 @@ function Homepage() {
   const navigate = useNavigate()
   const pos = mascotPositions[screen]
 
-  // When user clicks "START SESSION" on goal screen, navigate to onboarding
-  const handleGoalNext = () => navigate('/onboarding')
+  // Go straight to onboarding (goal selection is handled there now)
+  const handleStart = () => navigate('/onboarding')
 
   return (
     <div
@@ -154,31 +153,12 @@ function Homepage() {
             />
           </motion.div>
         )}
-        {screen === 'goal' && (
-          <motion.div
-            key="bubble-goal"
-            className="absolute z-30 pointer-events-none"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0, left: 'calc(15% + 56px)', top: 'calc(12% - 12px)' }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ type: 'spring', stiffness: 80, damping: 18, delay: 0.2 }}
-          >
-            <div className="glass px-5 py-2.5 rounded-2xl">
-              <span className="text-[14px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                <TalkingBubble text="What would you like to practice?" />
-              </span>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
 
-      {/* Screen content — slides in/out smoothly */}
+      {/* Screen content */}
       <AnimatePresence mode="wait">
         {screen === 'splash' && (
-          <SplashContent key="splash" onNext={() => setScreen('goal')} />
-        )}
-        {screen === 'goal' && (
-          <GoalContent key="goal" onNext={handleGoalNext} onBack={() => setScreen('splash')} />
+          <SplashContent key="splash" onNext={handleStart} />
         )}
       </AnimatePresence>
     </div>
@@ -265,100 +245,4 @@ function SplashContent({ onNext }: { onNext: () => void }) {
   )
 }
 
-/* ====== GOAL CONTENT ====== */
-const OPTIONS = [
-  { title: 'Job Interview', desc: 'Practice behavioral questions with AI feedback' },
-  { title: 'Presentation', desc: 'Deliver a pitch or talk to an audience' },
-  { title: 'Freestyle', desc: 'Speak freely on any topic' },
-  { title: 'Reading Aloud', desc: 'Practice clarity and pacing' },
-]
-
-function GoalContent({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const [selected, setSelected] = useState(0)
-
-  return (
-    <motion.div
-      className="absolute inset-0 z-20 flex flex-col pt-32 px-6"
-      initial={{ opacity: 0, x: 80 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -80 }}
-      transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
-    >
-      {/* Back button */}
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        onClick={onBack}
-        className="absolute top-10 left-6 w-9 h-9 rounded-full flex items-center justify-center cursor-pointer bg-transparent border-none z-30"
-      >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M12.5 15L7.5 10L12.5 5" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </motion.button>
-
-      {/* Options */}
-      <div className="flex-1 flex flex-col gap-3 max-w-[480px] mx-auto w-full mt-8">
-        {OPTIONS.map((opt, i) => (
-          <motion.button
-            key={opt.title}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + i * 0.08, duration: 0.35 }}
-            whileTap={{ scale: 0.98 }}
-            whileHover={{ scale: 1.02 }}
-            onClick={() => setSelected(i)}
-            className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-left cursor-pointer transition-all duration-200"
-            style={{
-              background: selected === i ? 'rgba(194,143,231,0.1)' : 'rgba(255,255,255,0.04)',
-              border: selected === i ? '1.5px solid rgba(194,143,231,0.4)' : '1px solid rgba(255,255,255,0.06)',
-              backdropFilter: 'blur(20px)',
-            }}
-          >
-            <div className="flex items-end gap-[3px] shrink-0">
-              {[0, 1, 2].map((bar) => (
-                <div
-                  key={bar}
-                  className="w-[5px] rounded-sm transition-colors duration-200"
-                  style={{ height: 8 + bar * 5, background: selected === i ? '#c28fe7' : 'rgba(255,255,255,0.2)' }}
-                />
-              ))}
-            </div>
-            <div>
-              <div className="text-[15px] font-semibold transition-colors duration-200" style={{ color: selected === i ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.6)' }}>
-                {opt.title}
-              </div>
-              <div className="text-[12px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{opt.desc}</div>
-            </div>
-            {selected === i && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="ml-auto shrink-0 w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ background: '#c28fe7' }}
-              >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M3 7.5L5.5 10L11 4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </motion.div>
-            )}
-          </motion.button>
-        ))}
-      </div>
-
-      {/* CTA */}
-      <div className="py-8 max-w-[480px] mx-auto w-full">
-        <LiquidGlassPill
-          onClick={onNext}
-          tiltMax={4}
-          shineSize={240}
-          borderRadius="18px"
-          style={{ background: '#c28fe7', width: '100%' }}
-        >
-          <div className="py-4 text-[16px] font-bold text-white text-center w-full cursor-pointer tracking-wide">
-            START SESSION
-          </div>
-        </LiquidGlassPill>
-      </div>
-    </motion.div>
-  )
-}
 
