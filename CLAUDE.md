@@ -47,11 +47,21 @@ All implementation work follows `masterplan.md` in the project root. Reference i
 
 - **Stores:** `src/store/{scanStore,gameStore,sessionStore}.ts`
 - **Screens:** `src/gamification/screens/*.tsx`
-- **Components:** `src/gamification/components/*.tsx`
+- **Game Intros:** Each game has built-in `GameIntro` phase (no shared Countdown)
+- **Shared Components:** `src/gamification/components/{GameIntro,Banner,CameraFeed,AudioWave,RadarChart}*.tsx`
 - **Analysis:** `src/analysis/{speech,audio,mediapipe}/*.ts`
 - **Scoring:** `src/analysis/scoring/{radarScorer,gameScorer}.ts`
+- **Sounds:** `src/lib/sounds.ts` (oscillator-based, no .mp3 files)
 - **Layout:** `src/gamification/GamificationLayout.tsx` wraps all gamification routes
 - **Homepage:** Defined inline in `src/App.tsx` (dark theme, separate from gamification)
+
+## Audio Pipeline
+
+- Mic requests use `echoCancellation`, `noiseSuppression`, `autoGainControl`
+- Pitch analyzer chain: source → DynamicsCompressorNode → AnalyserNode
+- Transcriber uses `maxAlternatives: 3` with confidence-based filtering (rejects < 0.3)
+- Filler detector uses count-based tracking on interim results for fast detection
+- Camera games (EyeLock, StatueMode, RadarScan) use fullscreen camera with floating glass HUD
 
 ## Build & Verify
 

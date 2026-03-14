@@ -156,6 +156,11 @@ Replaced fragile `document.querySelector('video')` with proper `onVideoRef` call
 - Appears after 10 seconds of gameplay
 - Uses actual elapsed time for scoring
 
+### 9.7 — Audio quality improvements [DONE]
+- **Browser noise suppression**: All mic requests now enable `echoCancellation`, `noiseSuppression`, and `autoGainControl` via getUserMedia constraints (both `useMicrophone` hook and `CameraFeed`)
+- **DynamicsCompressorNode**: Added to pitch analyzer audio chain (threshold -40dB, 4:1 ratio) — reduces background noise and normalizes speech volume before pitch/volume analysis
+- **Confidence filtering**: Transcriber now picks the best alternative by confidence score from `maxAlternatives: 3`, and rejects final results with confidence < 0.3 (likely noise artifacts)
+
 ---
 
 ## Key Architecture
