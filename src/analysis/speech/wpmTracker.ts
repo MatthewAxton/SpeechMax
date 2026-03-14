@@ -16,6 +16,7 @@ const ROLLING_WINDOW_MS = 3000
 const subscribers = new Set<WpmCallback>()
 let startTime = 0
 let totalWords = 0
+let pendingInterimWords = 0
 const buffer: WordEntry[] = []
 const wpmSamples: number[] = []
 let intervalId: ReturnType<typeof setInterval> | null = null
@@ -24,10 +25,15 @@ let unsubTranscript: (() => void) | null = null
 function processTranscript(event: TranscriptEvent) {
   if (startTime === 0) startTime = Date.now()
 
+  const words = event.text.split(/\s+/).filter(Boolean).length
+
   if (event.isFinal) {
-    const words = event.text.split(/\s+/).filter(Boolean).length
     totalWords += words
+    pendingInterimWords = 0
     buffer.push({ wordCount: words, timestamp: Date.now() })
+  } else {
+    // Track interim words so rolling WPM updates immediately while speaking
+    pendingInterimWords = words
   }
 }
 
@@ -47,7 +53,7 @@ export function getSessionWpm(): number {
 
 export function getRollingWpm(): number {
   pruneBuffer()
-  const wordsInWindow = buffer.reduce((sum, e) => sum + e.wordCount, 0)
+  const wordsInWindow = buffer.reduce((sum, e) => sum + e.wordCount, 0) + pendingInterimWords
   // words in 3 seconds × 20 = words per minute
   return Math.round(wordsInWindow * 20)
 }
@@ -68,6 +74,7 @@ export function getWpmStdDev(): number {
 export function startWpmTracking(): void {
   startTime = 0
   totalWords = 0
+  pendingInterimWords = 0
   buffer.length = 0
   wpmSamples.length = 0
   unsubTranscript = onTranscript(processTranscript)
