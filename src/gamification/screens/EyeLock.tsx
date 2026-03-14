@@ -38,11 +38,20 @@ export default function EyeLock() {
 
   const eye = useEyeContact()
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const trackingStarted = useRef(false)
+
+  // Try to start tracking (guarded against double-start)
+  const tryStartTracking = useCallback(() => {
+    if (trackingStarted.current || !eye.modelReady || !videoRef.current) return
+    trackingStarted.current = true
+    eye.startTracking(videoRef.current)
+  }, [eye.modelReady, eye.startTracking])
 
   // Auto-start when playing
   useEffect(() => {
     if (phase !== 'playing') return
     let cancelled = false
+    trackingStarted.current = false
     eye.init().then(() => { if (!cancelled) setReady(true) })
     return () => { cancelled = true }
   }, [phase, eye.init])
@@ -50,14 +59,14 @@ export default function EyeLock() {
   // Store video element when CameraFeed provides it
   const handleVideoRef = useCallback((el: HTMLVideoElement) => {
     videoRef.current = el
-    if (eye.modelReady) eye.startTracking(el)
-  }, [eye.modelReady, eye.startTracking])
+    tryStartTracking()
+  }, [tryStartTracking])
 
   // Start tracking when model loads (if video already available)
   useEffect(() => {
-    if (!ready || !eye.modelReady || !videoRef.current) return
-    eye.startTracking(videoRef.current)
-  }, [ready, eye.modelReady, eye.startTracking])
+    if (!ready) return
+    tryStartTracking()
+  }, [ready, eye.modelReady, tryStartTracking])
 
   // Power ring: charges while maintaining eye contact
   useEffect(() => {

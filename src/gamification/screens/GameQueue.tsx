@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Flame, Crosshair, Eye, Activity, Waves, Shield, Award, ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { TalkingBubble } from '../components/Mike'
 import { TopBanner } from '../components/Banner'
 import { RadarChart } from '../components/radar-chart'
 import { useScanStore } from '../../store/scanStore'
@@ -182,8 +183,9 @@ export default function GameQueue() {
                 position: 'absolute', top: 6, right: 8, background: 'none', border: 'none',
                 color: 'rgba(255,255,255,0.3)', fontSize: 16, cursor: 'pointer', lineHeight: 1,
               }}>×</button>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, paddingRight: 16 }}
-                dangerouslySetInnerHTML={{ __html: TIPS[tipIdx].replace(/\*\*(.*?)\*\*/g, '<strong style="color:#C28FE7">$1</strong>') }} />
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, paddingRight: 16 }}>
+                <TalkingBubble text={TIPS[tipIdx].replace(/\*\*(.*?)\*\*/g, '<strong style="color:#C28FE7">$1</strong>')} />
+              </div>
             </div>
           </motion.div>
         )}

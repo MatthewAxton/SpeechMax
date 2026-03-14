@@ -35,10 +35,21 @@ export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style, w
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        // Wait for video to be ready before notifying consumers
+        if (onVideoRef) {
+          const vid = videoRef.current
+          const notifyWhenReady = () => {
+            if (vid.readyState >= 2) {
+              onVideoRef(vid)
+            } else {
+              vid.addEventListener('loadeddata', () => onVideoRef(vid), { once: true })
+            }
+          }
+          notifyWhenReady()
+        }
       }
       setState('active')
       if (onStream) onStream(stream)
-      if (onVideoRef && videoRef.current) onVideoRef(videoRef.current)
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setState('denied')

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Lightbulb, Crosshair, Eye, Activity, Waves, Shield } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
-import { Mike } from '../components/Mike'
+import { Mike, TalkingBubble } from '../components/Mike'
 import { playCountdownBeep, playGoTone } from '../../lib/sounds'
 
 const gameInfo: Record<string, { title: string; axis: string; duration: string; icon: any; steps: string[]; goal: string; tip: string; message: string; countdownMsg: string }> = {
@@ -113,7 +113,7 @@ export default function Countdown() {
                       <div style={{ width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderBottom: '8px solid rgba(255,255,255,0.08)' }} />
                       <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: '7px solid rgba(255,255,255,0.06)', marginTop: -7 }} />
                       <div style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '2px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '14px 22px', fontSize: 16, fontWeight: 600, maxWidth: 360, textAlign: 'center', lineHeight: 1.4, boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                        {bubbleText}
+                        <TalkingBubble text={bubbleText} />
                       </div>
                     </motion.div>
                   )}
@@ -223,7 +223,7 @@ export default function Countdown() {
                       <div style={{ width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderBottom: '8px solid rgba(255,255,255,0.08)' }} />
                       <div style={{ width: 0, height: 0, borderLeft: '7px solid transparent', borderRight: '7px solid transparent', borderBottom: '7px solid rgba(255,255,255,0.06)', marginTop: -7 }} />
                       <div style={{ background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '2px solid rgba(255,255,255,0.08)', borderRadius: 16, padding: '12px 28px', fontSize: 36, fontWeight: 900, color: 'var(--purple)', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                        {bubbleText}
+                        <TalkingBubble text={bubbleText} />
                       </div>
                     </motion.div>
                   )}

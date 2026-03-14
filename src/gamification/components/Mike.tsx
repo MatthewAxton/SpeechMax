@@ -21,7 +21,7 @@ export function MikeSmall({ state = 'talking' }: { state?: 'idle' | 'talking' })
   )
 }
 
-function TalkingBubble({ text }: { text: string }) {
+export function TalkingBubble({ text }: { text: string }) {
   const plainText = text.replace(/<[^>]*>/g, '')
   const [charIndex, setCharIndex] = useState(0)
   const done = charIndex >= plainText.length

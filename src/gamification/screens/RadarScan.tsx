@@ -61,14 +61,13 @@ export default function RadarScan() {
 
   // Start MediaPipe when video element is available
   const handleVideoRef = useCallback(async (video: HTMLVideoElement) => {
-    try {
-      await initGazeEngine()
-      startGazeTracking(video)
-    } catch { /* gaze may fail — continue */ }
-    try {
-      await initPoseTracker()
-      startPoseTracking(video)
-    } catch { /* pose may fail — continue */ }
+    // Initialize both models in parallel for faster startup
+    const [gazeOk, poseOk] = await Promise.all([
+      initGazeEngine().then(() => true).catch(() => false),
+      initPoseTracker().then(() => true).catch(() => false),
+    ])
+    if (gazeOk) startGazeTracking(video)
+    if (poseOk) startPoseTracking(video)
   }, [])
 
   // Start mic + analysis when camera stream is ready (audio comes with it)

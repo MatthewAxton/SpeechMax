@@ -70,6 +70,7 @@ const WEAK_THRESHOLD = 0.30
 // ─── State ───────────────────────────────────────────────────────────────────
 
 let faceLandmarker: FaceLandmarker | null = null
+let initPromise: Promise<void> | null = null
 let rafId = 0
 let active = false
 let smoothedConfidence = 0.5   // Start at neutral
@@ -80,18 +81,30 @@ const subscribers = new Set<GazeCallback>()
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 export async function initGazeEngine(): Promise<void> {
-  const filesetResolver = await FilesetResolver.forVisionTasks(
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
-  )
-  faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
-    baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-      delegate: 'GPU',
-    },
-    runningMode: 'VIDEO',
-    numFaces: 1,
-    outputFaceBlendshapes: true,
-  })
+  // Singleton: reuse existing model or in-flight init
+  if (faceLandmarker) return
+  if (initPromise) return initPromise
+
+  initPromise = (async () => {
+    try {
+      const filesetResolver = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+      )
+      faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numFaces: 1,
+        outputFaceBlendshapes: true,
+      })
+    } catch (e) {
+      initPromise = null // Allow retry on failure
+      throw e
+    }
+  })()
+  return initPromise
 }
 
 // ─── Signal 1: Iris centering ────────────────────────────────────────────────
@@ -196,6 +209,12 @@ function computeBlendshapeGaze(blendshapes: { categoryName: string; score: numbe
 
 function processFrame(video: HTMLVideoElement) {
   if (!active || !faceLandmarker) return
+
+  // Skip if video isn't ready yet (no frames to process)
+  if (video.readyState < 2) {
+    rafId = requestAnimationFrame(() => processFrame(video))
+    return
+  }
 
   frameCount++
   if (frameCount % 2 !== 0) {

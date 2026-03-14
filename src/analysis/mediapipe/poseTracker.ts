@@ -41,6 +41,7 @@ export interface PoseFrame {
 type PoseFrameCallback = (frame: PoseFrame) => void
 
 let poseLandmarker: PoseLandmarker | null = null
+let initPromise: Promise<void> | null = null
 let rafId = 0
 let active = false
 let frameCount = 0
@@ -55,17 +56,29 @@ const HEAD_BUFFER_SIZE = 30
 const HIP_BUFFER_SIZE = 30
 
 export async function initPoseTracker(): Promise<void> {
-  const filesetResolver = await FilesetResolver.forVisionTasks(
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
-  )
-  poseLandmarker = await PoseLandmarker.createFromOptions(filesetResolver, {
-    baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
-      delegate: 'GPU',
-    },
-    runningMode: 'VIDEO',
-    numPoses: 1,
-  })
+  // Singleton: reuse existing model or in-flight init
+  if (poseLandmarker) return
+  if (initPromise) return initPromise
+
+  initPromise = (async () => {
+    try {
+      const filesetResolver = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+      )
+      poseLandmarker = await PoseLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numPoses: 1,
+      })
+    } catch (e) {
+      initPromise = null // Allow retry on failure
+      throw e
+    }
+  })()
+  return initPromise
 }
 
 function euclidean(a: { x: number; y: number }, b: { x: number; y: number }): number {
@@ -80,6 +93,12 @@ function stdDev(values: number[]): number {
 
 function processFrame(video: HTMLVideoElement) {
   if (!active || !poseLandmarker) return
+
+  // Skip if video isn't ready yet
+  if (video.readyState < 2) {
+    rafId = requestAnimationFrame(() => processFrame(video))
+    return
+  }
 
   frameCount++
   if (frameCount % 2 !== 0) {

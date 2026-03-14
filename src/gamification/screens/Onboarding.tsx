@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mike } from '../components/Mike'
+import { Mike, TalkingBubble } from '../components/Mike'
 
 const ease = [0.25, 0.46, 0.45, 0.94] as const
 
@@ -55,7 +55,7 @@ export default function Onboarding() {
             </motion.div>
 
             <div style={{ marginTop: 24, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '2px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '20px 28px', fontSize: 17, fontWeight: 600, lineHeight: 1.6, color: 'var(--text, rgba(255,255,255,0.9))', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-              Hey! I'm <strong style={{ color: 'var(--purple, #C28FE7)' }}>Mike</strong>, your speech coach. I'm going to listen to you speak for 30 seconds and figure out how to help you improve.
+              <TalkingBubble text="Hey! I'm <strong style='color:#C28FE7'>Mike</strong>, your speech coach. I'm going to listen to you speak for 30 seconds and figure out how to help you improve." />
             </div>
 
             <button
@@ -87,7 +87,7 @@ export default function Onboarding() {
             </motion.div>
 
             <div style={{ marginTop: 20, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '2px solid rgba(255,255,255,0.08)', borderRadius: 20, padding: '18px 24px', fontSize: 18, fontWeight: 700, lineHeight: 1.5, color: 'var(--text, rgba(255,255,255,0.9))', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-              I need to <strong style={{ color: 'var(--purple, #C28FE7)' }}>see and hear</strong> you. Ready?
+              <TalkingBubble text="I need to <strong style='color:#C28FE7'>see and hear</strong> you. Ready?" />
             </div>
 
             <button

@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LiquidGlassPill } from 'anam-react-liquid-glass'
 import PaperWaveBackground from './components/PaperWaveBackground'
 import GamificationLayout from './gamification/GamificationLayout'
 import { DevMenu } from './gamification/components/DevMenu'
+import { TalkingBubble } from './gamification/components/Mike'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
 
@@ -189,38 +190,24 @@ function SplashBubbleText() {
   const [showSecond, setShowSecond] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSecond(true), 2000)
+    const timer = setTimeout(() => setShowSecond(true), 3000)
     return () => clearTimeout(timer)
   }, [])
 
   return (
-    <AnimatePresence mode="wait">
-      {!showSecond ? (
-        <motion.span
-          key="welcome"
-          className="text-[15px] font-medium"
-          style={{ color: 'rgba(255,255,255,0.7)' }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          Welcome to Speech<span style={{ color: '#c28fe7' }}>MAX</span>!
-        </motion.span>
-      ) : (
-        <motion.span
-          key="speaking"
-          className="text-[15px] font-medium"
-          style={{ color: 'rgba(255,255,255,0.7)' }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          Let's get you speaking!
-        </motion.span>
-      )}
-    </AnimatePresence>
+    <span className="text-[15px] font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>
+      <AnimatePresence mode="wait">
+        {!showSecond ? (
+          <motion.span key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <TalkingBubble text="Welcome to Speech<span style='color:#c28fe7'>MAX</span>!" />
+          </motion.span>
+        ) : (
+          <motion.span key="speaking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+            <TalkingBubble text="Let's get you speaking!" />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </span>
   )
 }
 
