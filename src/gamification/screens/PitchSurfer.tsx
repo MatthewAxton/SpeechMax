@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, TrendingUp, Minus } from 'lucide-react'
+import { Zap, TrendingUp, Minus, Waves } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
+import GameIntro from '../components/GameIntro'
+import CountdownOverlay from '../components/CountdownOverlay'
 import { Mike } from '../components/Mike'
 import { AudioWave } from '../components/AudioWave'
 import { startAudioAnalysis, stopAudioAnalysis, onAudioFrame } from '../../analysis/audio/pitchAnalyzer'
@@ -25,13 +27,15 @@ export default function PitchSurfer() {
   const [currentPitch, setCurrentPitch] = useState(0)
   const [variation, setVariation] = useState<'low' | 'good' | 'high'>('low')
   const { requestMic, stopMic } = useMicrophone()
+  const [phase, setPhase] = useState<'intro' | 'countdown' | 'playing'>('intro')
   const [wiping, setWiping] = useState(false)
   const pitchBuffer = useRef<number[]>([])
   const monotoneSeconds = useRef(0)
   const finished = useRef(false)
 
-  // Auto-start on mount
+  // Start when phase becomes 'playing'
   useEffect(() => {
+    if (phase !== 'playing') return
     let cancelled = false
     ;(async () => {
       const stream = await requestMic()
@@ -39,7 +43,7 @@ export default function PitchSurfer() {
       if (!cancelled) setReady(true)
     })()
     return () => { cancelled = true }
-  }, [requestMic])
+  }, [phase, requestMic])
 
   // Listen for real pitch data
   useEffect(() => {
@@ -128,6 +132,39 @@ export default function PitchSurfer() {
   }, [nav, ready, finishGame])
 
   if (!hasScans) return null
+  if (phase === 'intro') return (
+    <GameIntro
+      title="Pitch Surfer"
+      axis="Expression"
+      duration={`${gameDuration}s`}
+      icon={Waves}
+      steps={[
+        'Read the passage aloud with expression',
+        'Your pitch creates a wave on screen — vary it to keep the wave alive',
+        'A flat, monotone voice = flatline = wipeout!',
+      ]}
+      goal="Keep the wave dynamic — no flatlines!"
+      tip="Emphasise key words to create variation."
+      prompt={prompt}
+      promptLabel="Read With Expression"
+      heroContent={
+        <svg width="280" height="60" viewBox="0 0 280 60">
+          <motion.path
+            d="M0,30 Q35,10 70,30 T140,30 T210,30 T280,30"
+            fill="none" stroke="#06B6D4" strokeWidth={2.5}
+            animate={{ d: ['M0,30 Q35,10 70,30 T140,30 T210,30 T280,30', 'M0,30 Q35,50 70,30 T140,10 T210,50 T280,30', 'M0,30 Q35,10 70,30 T140,30 T210,30 T280,30'] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </svg>
+      }
+      onReady={() => setPhase('countdown')}
+    />
+  )
+  if (phase === 'countdown') return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <CountdownOverlay onComplete={() => setPhase('playing')} />
+    </div>
+  )
   const variationColor = variation === 'high' ? 'var(--green)' : variation === 'good' ? 'var(--purple)' : 'var(--red)'
   const VariationIcon = variation === 'low' ? Minus : TrendingUp
 

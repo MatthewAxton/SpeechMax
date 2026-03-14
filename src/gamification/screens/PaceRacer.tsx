@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap } from 'lucide-react'
+import { Zap, Activity } from 'lucide-react'
+import GameIntro from '../components/GameIntro'
+import CountdownOverlay from '../components/CountdownOverlay'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
 import { startTranscription, stopTranscription } from '../../analysis/speech/transcriber'
@@ -24,15 +26,19 @@ export default function PaceRacer() {
   const [time, setTime] = useState(gameDuration)
   const [wpm, setWpm] = useState(0)
   const [timeInZone, setTimeInZone] = useState(0)
+  const [phase, setPhase] = useState<'intro' | 'countdown' | 'playing'>('intro')
   const [ready, setReady] = useState(false)
+  const [gear, setGear] = useState(0)
+  const consecutiveInZone = useRef(0)
   const [silent, setSilent] = useState(false)
   const lastWpmTime = useRef(Date.now())
   const wpmRef = useRef(0)
   const timeInZoneRef = useRef(0)
   const { requestMic, stopMic } = useMicrophone()
 
-  // Auto-start on mount
+  // Auto-start when playing
   useEffect(() => {
+    if (phase !== 'playing') return
     let cancelled = false
     ;(async () => {
       await requestMic()
@@ -43,7 +49,7 @@ export default function PaceRacer() {
       }
     })()
     return () => { cancelled = true }
-  }, [requestMic])
+  }, [phase, requestMic])
 
   // Listen for real WPM readings
   useEffect(() => {
@@ -54,6 +60,20 @@ export default function PaceRacer() {
       if (reading.rolling > 0) { lastWpmTime.current = Date.now(); setSilent(false) }
       if (reading.rolling >= zoneMin && reading.rolling <= zoneMax) {
         setTimeInZone(p => { timeInZoneRef.current = p + 1; return p + 1 })
+      }
+      // Gear system: sustained in-zone = gear up
+      if (reading.rolling >= zoneMin && reading.rolling <= zoneMax) {
+        consecutiveInZone.current++
+        if (consecutiveInZone.current >= 40) setGear(4)      // ~20s at 500ms intervals
+        else if (consecutiveInZone.current >= 24) setGear(3)  // ~12s
+        else if (consecutiveInZone.current >= 12) setGear(2)  // ~6s
+        else if (consecutiveInZone.current >= 4) setGear(1)   // ~2s
+      } else {
+        consecutiveInZone.current = Math.max(0, consecutiveInZone.current - 2) // downshift
+        if (consecutiveInZone.current < 4) setGear(0)
+        else if (consecutiveInZone.current < 12) setGear(1)
+        else if (consecutiveInZone.current < 24) setGear(2)
+        else setGear(3)
       }
     })
     return unsub
@@ -87,6 +107,39 @@ export default function PaceRacer() {
   }, [nav, ready, stopMic])
 
   if (!hasScans) return null
+  if (phase === 'intro') return (
+    <GameIntro
+      title="Pace Racer"
+      axis="Pacing"
+      duration={`${gameDuration}s`}
+      icon={Activity}
+      steps={[
+        'Speak on the prompt at a natural pace',
+        `A pace bar shows your live WPM — stay in the green zone (${zoneMin}–${zoneMax})`,
+        'Too fast or too slow and the bar turns red',
+      ]}
+      goal={`Keep your speaking pace in the green zone for ${gameDuration} seconds`}
+      tip="Breathe between sentences to control pace."
+      prompt={prompt}
+      promptLabel="Freestyle"
+      heroContent={
+        <div style={{ width: '100%', maxWidth: 300 }}>
+          <div style={{ height: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
+            <motion.div animate={{ width: ['20%', '60%', '80%', '50%', '20%'] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} style={{ height: '100%', background: 'linear-gradient(90deg, #FF4B4B, #58CC02, #58CC02, #FF4B4B)', borderRadius: 6 }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+            <span>Slow</span><span style={{ color: '#58CC02' }}>{zoneMin}–{zoneMax} WPM</span><span>Fast</span>
+          </div>
+        </div>
+      }
+      onReady={() => setPhase('countdown')}
+    />
+  )
+  if (phase === 'countdown') return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <CountdownOverlay onComplete={() => setPhase('playing')} />
+    </div>
+  )
   const inZone = wpm >= zoneMin && wpm <= zoneMax
   const nearLow = Math.abs(wpm - zoneMin) < 15 && wpm > 0
   const nearHigh = Math.abs(wpm - zoneMax) < 15 && wpm > 0

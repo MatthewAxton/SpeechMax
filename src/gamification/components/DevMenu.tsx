@@ -8,7 +8,6 @@ const routes = [
   { path: '/scan', label: 'Radar Scan' },
   { path: '/results', label: 'Radar Results' },
   { path: '/queue', label: 'Game Queue' },
-  { path: '/countdown', label: 'Countdown' },
   { path: '/filler-ninja', label: 'Filler Ninja' },
   { path: '/eye-lock', label: 'Eye Lock' },
   { path: '/pace-racer', label: 'Pace Racer' },

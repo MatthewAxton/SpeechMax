@@ -12,11 +12,11 @@ import { useRequireScan } from '../hooks/useRequireScan'
 import BADGES from '../../lib/badges'
 
 const GAME_META: Record<GameType, { name: string; icon: LucideIcon; axis: string; time: string; desc: string; path: string }> = {
-  'filler-ninja': { name: 'Filler Ninja', icon: Crosshair, axis: 'Clarity', time: '90s', desc: 'Speak without filler words. Every "um" and "like" gets slashed!', path: '/countdown?next=/filler-ninja' },
-  'eye-lock': { name: 'Eye Lock', icon: Eye, axis: 'Confidence', time: '45s', desc: 'Keep your gaze locked on the camera. Look away and the screen dims.', path: '/countdown?next=/eye-lock' },
-  'pace-racer': { name: 'Pace Racer', icon: Activity, axis: 'Pacing', time: '60s', desc: 'Stay in the WPM zone. Not too fast, not too slow — find your rhythm.', path: '/countdown?next=/pace-racer' },
-  'pitch-surfer': { name: 'Pitch Surfer', icon: Waves, axis: 'Expression', time: '30s', desc: 'Surf the wave with your voice. Vary your pitch to keep it alive!', path: '/countdown?next=/pitch-surfer' },
-  'statue-mode': { name: 'Statue Mode', icon: Shield, axis: 'Composure', time: '45s', desc: 'Speak while staying perfectly still. Movement gets tracked!', path: '/countdown?next=/statue-mode' },
+  'filler-ninja': { name: 'Filler Ninja', icon: Crosshair, axis: 'Clarity', time: '90s', desc: 'Speak without filler words. Every "um" and "like" gets slashed!', path: '/filler-ninja' },
+  'eye-lock': { name: 'Eye Lock', icon: Eye, axis: 'Confidence', time: '45s', desc: 'Keep your gaze locked on the camera. Look away and the screen dims.', path: '/eye-lock' },
+  'pace-racer': { name: 'Pace Racer', icon: Activity, axis: 'Pacing', time: '60s', desc: 'Stay in the WPM zone. Not too fast, not too slow — find your rhythm.', path: '/pace-racer' },
+  'pitch-surfer': { name: 'Pitch Surfer', icon: Waves, axis: 'Expression', time: '30s', desc: 'Surf the wave with your voice. Vary your pitch to keep it alive!', path: '/pitch-surfer' },
+  'statue-mode': { name: 'Statue Mode', icon: Shield, axis: 'Composure', time: '45s', desc: 'Speak while staying perfectly still. Movement gets tracked!', path: '/statue-mode' },
 }
 const AXIS_MAP: Record<GameType, 'clarity' | 'confidence' | 'pacing' | 'expression' | 'composure'> = {
   'filler-ninja': 'clarity', 'eye-lock': 'confidence', 'pace-racer': 'pacing', 'pitch-surfer': 'expression', 'statue-mode': 'composure',

@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, Lock } from 'lucide-react'
+import { Eye, Zap, Lock } from 'lucide-react'
+import GameIntro from '../components/GameIntro'
+import CountdownOverlay from '../components/CountdownOverlay'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
 import { CameraFeed } from '../components/CameraFeed'
@@ -23,16 +25,20 @@ export default function EyeLock() {
   const gameDuration = difficulty === 'hard' ? 60 : 45
   const [time, setTime] = useState(gameDuration)
   const [ready, setReady] = useState(false)
+  const [charge, setCharge] = useState(0)
+  const [burstCount, setBurstCount] = useState(0)
+  const [phase, setPhase] = useState<'intro' | 'countdown' | 'playing'>('intro')
   const finished = useRef(false)
 
   const eye = useEyeContact()
 
-  // Auto-start on mount
+  // Auto-start when playing
   useEffect(() => {
+    if (phase !== 'playing') return
     let cancelled = false
     eye.init().then(() => { if (!cancelled) setReady(true) })
     return () => { cancelled = true }
-  }, [eye.init])
+  }, [phase, eye.init])
 
   // Start tracking once video is playing
   const handleStream = useCallback(() => {
@@ -52,6 +58,25 @@ export default function EyeLock() {
     }, 600)
     return () => clearTimeout(t)
   }, [ready, eye.modelReady, eye.startTracking])
+
+  // Power ring: charges while maintaining eye contact
+  useEffect(() => {
+    if (!ready) return
+    const t = setInterval(() => {
+      if (eye.quality === 'good') {
+        setCharge(c => {
+          if (c >= 100) {
+            setBurstCount(b => b + 1)
+            return 0 // reset after burst
+          }
+          return Math.min(100, c + 5) // ~4 seconds to fill
+        })
+      } else {
+        setCharge(c => Math.max(0, c - 8)) // drains faster than it fills
+      }
+    }, 200)
+    return () => clearInterval(t)
+  }, [ready, eye.quality])
 
   const finishGame = useCallback(() => {
     if (finished.current) return
@@ -83,6 +108,36 @@ export default function EyeLock() {
   }, [nav, ready, finishGame])
 
   if (!hasScans) return null
+  if (phase === 'intro') return (
+    <GameIntro
+      title="Eye Lock"
+      axis="Confidence"
+      duration={`${gameDuration}s`}
+      icon={Eye}
+      steps={[
+        'Look directly at the camera while answering the question',
+        'The screen glows green when your gaze is locked',
+        'Looking away dims the screen — stay focused!',
+      ]}
+      goal="Keep your gaze locked for as much of the session as possible"
+      tip="Relax your shoulders and breathe."
+      prompt={prompt}
+      promptLabel="Behavioral Question"
+      heroContent={
+        <div style={{ position: 'relative', width: 100, height: 100 }}>
+          <motion.div animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0, 0.3] }} transition={{ duration: 2, repeat: Infinity }} style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(88,204,2,0.3)' }} />
+          <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2, repeat: Infinity, delay: 0.5 }} style={{ position: 'absolute', inset: 15, borderRadius: '50%', border: '2px solid rgba(88,204,2,0.4)' }} />
+          <div style={{ position: 'absolute', inset: 35, borderRadius: '50%', background: '#58CC02', boxShadow: '0 0 20px rgba(88,204,2,0.5)' }} />
+        </div>
+      }
+      onReady={() => setPhase('countdown')}
+    />
+  )
+  if (phase === 'countdown') return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <CountdownOverlay onComplete={() => setPhase('playing')} />
+    </div>
+  )
   const color = QUALITY_COLORS[eye.quality]
   const mins = Math.floor(time / 60)
   const secs = time % 60
@@ -184,6 +239,31 @@ export default function EyeLock() {
                 />
               }
             />
+          </div>
+
+          {/* Power ring charge */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 8 }}>
+            <div style={{ position: 'relative', width: 48, height: 48 }}>
+              <svg width={48} height={48} style={{ transform: 'rotate(-90deg)' }}>
+                <circle cx={24} cy={24} r={20} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={4} />
+                <circle cx={24} cy={24} r={20} fill="none" stroke={charge >= 90 ? '#FFD700' : '#58CC02'} strokeWidth={4} strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 20}`}
+                  strokeDashoffset={`${2 * Math.PI * 20 * (1 - charge / 100)}`}
+                  style={{ transition: 'stroke-dashoffset 0.2s ease, stroke 0.3s', filter: charge >= 90 ? 'drop-shadow(0 0 8px #FFD700)' : 'none' }}
+                />
+              </svg>
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: charge >= 90 ? '#FFD700' : 'rgba(255,255,255,0.6)' }}>
+                {charge >= 100 ? '✦' : `${charge}%`}
+              </div>
+            </div>
+            {burstCount > 0 && (
+              <motion.div key={burstCount} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ fontSize: 13, fontWeight: 800, color: '#FFD700' }}>
+                +{burstCount} BURST{burstCount > 1 ? 'S' : ''}
+              </motion.div>
+            )}
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+              {charge >= 90 ? 'READY TO BURST!' : eye.quality === 'good' ? 'Charging...' : 'Lock eyes to charge'}
+            </div>
           </div>
 
           {/* Question card */}

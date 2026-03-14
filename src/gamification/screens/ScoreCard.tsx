@@ -23,11 +23,11 @@ interface GameConfig {
 }
 
 const gameConfigs: Record<string, GameConfig> = {
-  filler: { title: 'Filler Ninja', axis: 'Clarity', icon: AlertCircle, replay: '/countdown?next=/filler-ninja' },
-  eyelock: { title: 'Eye Lock', axis: 'Confidence', icon: Eye, replay: '/countdown?next=/eye-lock' },
-  pitch: { title: 'Pitch Surfer', axis: 'Expression', icon: Waves, replay: '/countdown?next=/pitch-surfer' },
-  pace: { title: 'Pace Racer', axis: 'Pacing', icon: Activity, replay: '/countdown?next=/pace-racer' },
-  statue: { title: 'Statue Mode', axis: 'Composure', icon: Shield, replay: '/countdown?next=/statue-mode' },
+  filler: { title: 'Filler Ninja', axis: 'Clarity', icon: AlertCircle, replay: '/filler-ninja' },
+  eyelock: { title: 'Eye Lock', axis: 'Confidence', icon: Eye, replay: '/eye-lock' },
+  pitch: { title: 'Pitch Surfer', axis: 'Expression', icon: Waves, replay: '/pitch-surfer' },
+  pace: { title: 'Pace Racer', axis: 'Pacing', icon: Activity, replay: '/pace-racer' },
+  statue: { title: 'Statue Mode', axis: 'Composure', icon: Shield, replay: '/statue-mode' },
 }
 
 function getMessage(score: number, axis: string): string {
@@ -104,7 +104,7 @@ export default function ScoreCard() {
     ? recommendedOrder[currentIdx + 1]
     : null
   const nextPath = nextGameType
-    ? `/countdown?next=${GAME_PATH_MAP[nextGameType]}`
+    ? GAME_PATH_MAP[nextGameType]
     : '/progress'
 
   const [showConfetti, setShowConfetti] = useState(true)

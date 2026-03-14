@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap } from 'lucide-react'
+import { Zap, Shield } from 'lucide-react'
+import GameIntro from '../components/GameIntro'
+import CountdownOverlay from '../components/CountdownOverlay'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
 import { CameraFeed } from '../components/CameraFeed'
@@ -24,21 +26,23 @@ export default function StatueMode() {
   const [movementAlerts, setMovementAlerts] = useState(0)
   const [headStatus, setHeadStatus] = useState<'stable' | 'moving'>('stable')
   const [handStatus, setHandStatus] = useState<'stable' | 'moving'>('stable')
+  const [phase, setPhase] = useState<'intro' | 'countdown' | 'playing'>('intro')
   const [modelLoading, setModelLoading] = useState(true)
   const [bodyLandmarks, setBodyLandmarks] = useState<PoseFrame['bodyLandmarks']>(null)
   const alertCount = useRef(0)
   const composureRef = useRef(100)
   const finished = useRef(false)
 
-  // Auto-start on mount
+  // Auto-start when playing
   useEffect(() => {
+    if (phase !== 'playing') return
     let cancelled = false
     ;(async () => {
       try { await initPoseTracker() } catch { /* MediaPipe may fail */ }
       if (!cancelled) { setModelLoading(false); setReady(true) }
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [phase])
 
   // Start tracking when video is ready
   useEffect(() => {
@@ -98,6 +102,40 @@ export default function StatueMode() {
   }, [nav, ready, finishGame])
 
   if (!hasScans) return null
+
+  if (phase === 'intro') return (
+    <GameIntro
+      title="Statue Mode"
+      axis="Composure"
+      duration={`${gameDuration}s`}
+      icon={Shield}
+      steps={[
+        'Speak on the prompt while staying as still as possible',
+        'The camera tracks your body — fidgeting costs points',
+        'Green = stable, Yellow = moderate, Red = too much movement',
+      ]}
+      goal="Deliver your speech with minimal body movement"
+      tip="Plant your feet and keep hands still."
+      prompt={prompt}
+      promptLabel="Composure Challenge"
+      heroContent={
+        <svg width="120" height="160" viewBox="0 0 120 160" style={{ opacity: 0.6 }}>
+          <ellipse cx={60} cy={25} rx={18} ry={20} fill="none" stroke="#58CC02" strokeWidth={2} />
+          <rect x={40} y={50} width={40} height={55} rx={8} fill="none" stroke="#58CC02" strokeWidth={2} />
+          <line x1={40} y1={55} x2={15} y2={90} stroke="#58CC02" strokeWidth={2} strokeLinecap="round" />
+          <line x1={80} y1={55} x2={105} y2={90} stroke="#58CC02" strokeWidth={2} strokeLinecap="round" />
+          <line x1={48} y1={105} x2={40} y2={150} stroke="#58CC02" strokeWidth={2} strokeLinecap="round" />
+          <line x1={72} y1={105} x2={80} y2={150} stroke="#58CC02" strokeWidth={2} strokeLinecap="round" />
+        </svg>
+      }
+      onReady={() => setPhase('countdown')}
+    />
+  )
+  if (phase === 'countdown') return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <CountdownOverlay onComplete={() => setPhase('playing')} />
+    </div>
+  )
 
   const heatColor = (intensity: number) => intensity < 0.3 ? '#58CC02' : intensity < 0.6 ? '#FCD34D' : '#FF4B4B'
   const headIntensity = headStatus === 'stable' ? 0.1 : 0.9

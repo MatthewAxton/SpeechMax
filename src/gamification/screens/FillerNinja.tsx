@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, X } from 'lucide-react'
+import { Zap, X, Crosshair } from 'lucide-react'
+import GameIntro from '../components/GameIntro'
+import CountdownOverlay from '../components/CountdownOverlay'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
 import { startTranscription, stopTranscription, onTranscript } from '../../analysis/speech/transcriber'
@@ -29,14 +31,15 @@ export default function FillerNinja() {
   const [fillers, setFillers] = useState(0)
   const [lastFiller, setLastFiller] = useState<string | null>(null)
   const [liveText, setLiveText] = useState('')
+  const [phase, setPhase] = useState<'intro' | 'countdown' | 'playing'>('intro')
   const [ready, setReady] = useState(false)
   const [silent, setSilent] = useState(false)
   const lastFillerTime = useRef(Date.now())
   const lastSpeechTime = useRef(Date.now())
   const { requestMic, stopMic } = useMicrophone()
 
-  // Auto-start on mount (Countdown screen already handled the pre-game)
   useEffect(() => {
+    if (phase !== 'playing') return
     let cancelled = false
     ;(async () => {
       await requestMic()
@@ -47,7 +50,7 @@ export default function FillerNinja() {
       }
     })()
     return () => { cancelled = true }
-  }, [requestMic])
+  }, [phase, requestMic])
 
   // Listen for fillers
   useEffect(() => {
@@ -106,6 +109,47 @@ export default function FillerNinja() {
   }, [nav, ready, stopMic])
 
   if (!hasScans) return null
+
+  const comboTier = streak >= 25 ? { label: 'UNSTOPPABLE', color: '#FF6B00' }
+    : streak >= 20 ? { label: 'PERFECT', color: '#FFD700' }
+    : streak >= 15 ? { label: 'ON FIRE', color: '#FF4B4B' }
+    : streak >= 10 ? { label: 'GREAT', color: '#58CC02' }
+    : streak >= 5 ? { label: 'GOOD', color: '#C28FE7' }
+    : null
+
+  const multiplier = streak >= 25 ? 5 : streak >= 20 ? 4 : streak >= 15 ? 3 : streak >= 10 ? 2 : 1
+
+  if (phase === 'intro') return (
+    <GameIntro
+      title="Filler Ninja"
+      axis="Clarity"
+      duration={`${gameDuration}s`}
+      icon={Crosshair}
+      steps={[
+        'A prompt will appear — speak about it naturally',
+        'Every filler word ("um", "like", "basically") gets flagged in red',
+        'Replace fillers with a silent pause to build your streak',
+      ]}
+      goal="Survive without filler words as long as possible"
+      tip="Silence sounds more confident than fillers!"
+      prompt={prompt}
+      promptLabel="Interview Question"
+      heroContent={
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {['um', 'uh', 'like', 'basically', 'you know'].map(w => (
+            <motion.div key={w} animate={{ opacity: [0.3, 0.7, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: Math.random() * 2 }}
+              style={{ background: 'rgba(194,143,231,0.1)', border: '1px solid rgba(194,143,231,0.2)', borderRadius: 12, padding: '6px 14px', fontSize: 13, fontWeight: 600, color: 'rgba(194,143,231,0.5)' }}>{w}</motion.div>
+          ))}
+        </div>
+      }
+      onReady={() => setPhase('countdown')}
+    />
+  )
+  if (phase === 'countdown') return (
+    <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      <CountdownOverlay onComplete={() => setPhase('playing')} />
+    </div>
+  )
   const ninjaBarColor = streak > 20 ? '#58CC02' : streak > 10 ? '#C28FE7' : '#6B21A8'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
@@ -175,6 +219,28 @@ export default function FillerNinja() {
             <motion.div key={streak} initial={{ scale: 1.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 15 }} style={{ fontSize: 52, fontWeight: 800, lineHeight: 1, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', textShadow: streak > 10 ? '0 0 20px rgba(194,143,231,0.5)' : 'none' }}>{streak}</motion.div>
             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>seconds filler-free</div>
 
+            {/* Combo tier */}
+            {comboTier && (
+              <motion.div
+                key={comboTier.label}
+                initial={{ scale: 2, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                style={{ fontSize: 16, fontWeight: 900, color: comboTier.color, textTransform: 'uppercase', letterSpacing: 2, marginTop: 6, textShadow: `0 0 20px ${comboTier.color}60` }}
+              >
+                {comboTier.label}!
+              </motion.div>
+            )}
+            {multiplier > 1 && (
+              <motion.div
+                key={`mult-${multiplier}`}
+                initial={{ scale: 1.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                style={{ fontSize: 13, fontWeight: 800, color: '#FCD34D', marginTop: 4 }}
+              >
+                {multiplier}x MULTIPLIER
+              </motion.div>
+            )}
+
             {/* Ninja meter */}
             <div style={{ width: 200, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, marginTop: 8, overflow: 'hidden' }}>
               <motion.div
@@ -187,7 +253,7 @@ export default function FillerNinja() {
           <div style={{ marginTop: 16 }}><AudioWave /></div>
         </div>
       </div>
-      <BottomBanner left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>{streak > 5 ? 'Amazing streak!' : 'Keep going!'}</div>} center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 22, fontWeight: 800 }}>{streak}s Streak</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Filler-Free</div></div>} right={<><Zap size={14} /> Fillers: {fillers}</>} />
+      <BottomBanner left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>{comboTier ? `${comboTier.label}! ${multiplier}x multiplier` : streak > 0 ? 'Build your streak!' : 'Keep going!'}</div>} center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 22, fontWeight: 800 }}>{streak}s Streak</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Filler-Free</div></div>} right={<><Zap size={14} /> Fillers: {fillers}</>} />
     </div>
   )
 }

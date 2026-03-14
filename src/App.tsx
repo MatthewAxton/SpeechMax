@@ -11,7 +11,6 @@ import './App.css'
 const RadarScan = lazy(() => import('./gamification/screens/RadarScan'))
 const RadarResults = lazy(() => import('./gamification/screens/RadarResults'))
 const GameQueue = lazy(() => import('./gamification/screens/GameQueue'))
-const Countdown = lazy(() => import('./gamification/screens/Countdown'))
 const FillerNinja = lazy(() => import('./gamification/screens/FillerNinja'))
 const EyeLock = lazy(() => import('./gamification/screens/EyeLock'))
 const PaceRacer = lazy(() => import('./gamification/screens/PaceRacer'))
@@ -55,7 +54,6 @@ function AnimatedRoutes() {
               <Route path="/scan" element={<RadarScan />} />
               <Route path="/results" element={<RadarResults />} />
               <Route path="/queue" element={<GameQueue />} />
-              <Route path="/countdown" element={<Countdown />} />
               <Route path="/filler-ninja" element={<FillerNinja />} />
               <Route path="/eye-lock" element={<EyeLock />} />
               <Route path="/pace-racer" element={<PaceRacer />} />
