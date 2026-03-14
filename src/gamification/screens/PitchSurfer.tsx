@@ -25,6 +25,7 @@ export default function PitchSurfer() {
   const [currentPitch, setCurrentPitch] = useState(0)
   const [variation, setVariation] = useState<'low' | 'good' | 'high'>('low')
   const { requestMic, stopMic } = useMicrophone()
+  const [wiping, setWiping] = useState(false)
   const pitchBuffer = useRef<number[]>([])
   const monotoneSeconds = useRef(0)
 
@@ -56,9 +57,9 @@ export default function PitchSurfer() {
       if (buf.length < 5) { setVariation('low'); return }
       const mean = buf.reduce((a, b) => a + b, 0) / buf.length
       const stdDev = Math.sqrt(buf.reduce((sum, v) => sum + (v - mean) ** 2, 0) / buf.length)
-      if (stdDev > 30) setVariation('high')
-      else if (stdDev > 15) setVariation('good')
-      else { setVariation('low'); monotoneSeconds.current++ }
+      if (stdDev > 30) { setVariation('high'); monotoneSeconds.current = 0; setWiping(false) }
+      else if (stdDev > 15) { setVariation('good'); monotoneSeconds.current = 0; setWiping(false) }
+      else { setVariation('low'); monotoneSeconds.current++; if (monotoneSeconds.current >= 3) setWiping(true) }
     }, 1000)
     return () => clearInterval(id)
   }, [ready])
@@ -115,6 +116,10 @@ export default function PitchSurfer() {
   const variationColor = variation === 'high' ? 'var(--green)' : variation === 'good' ? 'var(--purple)' : 'var(--red)'
   const VariationIcon = variation === 'low' ? Minus : TrendingUp
 
+  // Dynamic Mike Y position based on last pitch value
+  const lastPitch = pitchHistory.length > 0 ? pitchHistory[pitchHistory.length - 1] : 0
+  const mikeY = Math.max(10, Math.min(190, 220 - ((lastPitch - 50) / 400) * 220)) - 40
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
       {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Read With Expression" />}
@@ -122,14 +127,63 @@ export default function PitchSurfer() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 40px' }}>
           <div style={{ width: '100%', maxWidth: 800, height: 220, position: 'relative', marginBottom: 12 }}>
-            <svg width="100%" height="100%" viewBox="0 0 800 220" preserveAspectRatio="none">
-              <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(194,143,231,0.15)" /><stop offset="100%" stopColor="rgba(194,143,231,0.02)" /></linearGradient></defs>
+            <svg width="100%" height="100%" viewBox="0 0 800 220" preserveAspectRatio="none" style={{ opacity: wiping ? 0.3 : 1, transition: 'opacity 0.5s ease' }}>
+              <defs>
+                <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(6,182,212,0.25)" />
+                  <stop offset="50%" stopColor="rgba(59,130,246,0.15)" />
+                  <stop offset="100%" stopColor="rgba(6,182,212,0.03)" />
+                </linearGradient>
+              </defs>
+              {/* Deep water background */}
+              <rect x={0} y={0} width={800} height={220} fill="rgba(6,182,212,0.08)" />
+              {/* Water texture lines */}
+              <line x1={0} y1={70} x2={800} y2={70} stroke="rgba(6,182,212,0.06)" strokeWidth={1} strokeDasharray="8 4" />
+              <line x1={0} y1={130} x2={800} y2={130} stroke="rgba(6,182,212,0.06)" strokeWidth={1} strokeDasharray="8 4" />
+              <line x1={0} y1={190} x2={800} y2={190} stroke="rgba(6,182,212,0.06)" strokeWidth={1} strokeDasharray="8 4" />
               {wavePath && <path d={wavePath} fill="url(#wg)" />}
-              {strokePath && <path d={strokePath} fill="none" stroke="var(--purple)" strokeWidth={2.5} />}
+              {strokePath && <path d={strokePath} fill="none" stroke="#06B6D4" strokeWidth={2.5} />}
             </svg>
-            <motion.div animate={{ y: [0, -12, 0, -6, 0], rotate: [0, 3, 0, -2, 0] }} transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }} style={{ position: 'absolute', top: 20, left: '52%', transform: 'translateX(-50%)' }}>
+
+            {/* Mike mascot riding the wave */}
+            <motion.div
+              animate={wiping
+                ? { rotate: [0, 45, 180, 360], y: [0, 20, 40, 20] }
+                : { y: [0, -6, 0, -3, 0], rotate: [0, 2, 0, -1, 0] }
+              }
+              transition={{ repeat: Infinity, duration: wiping ? 1 : 3, ease: 'easeInOut' }}
+              style={{ position: 'absolute', top: mikeY, right: '15%' }}
+            >
               <Mike state="talking" size={90} />
             </motion.div>
+
+            {/* Foam particles near Mike */}
+            {[0, 1, 2].map(i => (
+              <motion.div
+                key={`foam-${i}`}
+                animate={{ y: [-10, -30], opacity: [0.6, 0] }}
+                transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.3 }}
+                style={{
+                  position: 'absolute', top: mikeY + 60, right: `calc(15% + ${i * 20 - 10}px)`,
+                  width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.6)',
+                }}
+              />
+            ))}
+
+            {/* Wipeout text overlay */}
+            {wiping && (
+              <motion.div
+                animate={{ rotate: [-2, 2, -2] }}
+                transition={{ duration: 0.3, repeat: Infinity }}
+                style={{
+                  position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                  fontSize: 28, fontWeight: 800, color: '#FF4B4B',
+                  textShadow: '0 0 20px rgba(255,75,75,0.6), 0 0 40px rgba(255,75,75,0.3)',
+                }}
+              >
+                WIPEOUT!
+              </motion.div>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: variationColor, fontSize: 16, fontWeight: 700, marginBottom: 10 }}><VariationIcon size={18} /> {variation === 'high' ? 'HIGH VARIATION — Great!' : variation === 'good' ? 'GOOD VARIATION' : 'LOW VARIATION — Add expression!'}</div>
           <div className="card" style={{ width: '100%', maxWidth: 600, textAlign: 'center', padding: '18px 28px', marginBottom: 12 }}>
