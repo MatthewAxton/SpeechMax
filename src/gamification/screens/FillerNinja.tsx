@@ -75,34 +75,37 @@ export default function FillerNinja() {
     return unsub
   }, [ready])
 
-  // Timer + streak counter
+  // Timer + streak counter — only ticks while user is speaking
   useEffect(() => {
     if (!ready) return
     lastFillerTime.current = Date.now()
     const t = setInterval(() => {
-      setTime(p => {
-        if (p <= 1) {
-          clearInterval(t)
-          stopTranscription()
-          stopFillerDetection()
-          stopMic()
-          const metrics = { fillerCount: getFillerCount(), durationSeconds: gameDuration, longestStreakSeconds: Math.floor((Date.now() - lastFillerTime.current) / 1000) }
-          const score = computeSimpleGameScore('filler-ninja', metrics)
-          useGameStore.getState().addGameResult({ gameType: 'filler-ninja', score, metrics, timestamp: Date.now() })
-          useSessionStore.getState().markPromptUsed(prompt)
-          useSessionStore.getState().recordGame('filler-ninja')
-          const badges = useSessionStore.getState().checkBadges()
-          playGameComplete()
-          if (badges && badges.length > 0) playBadgeEarned()
-          nav('/score/filler')
-          return 0
-        }
-        return p - 1
-      })
-      // Streak = seconds since last filler
-      setStreak(Math.floor((Date.now() - lastFillerTime.current) / 1000))
-      // Silence detection
-      if (Date.now() - lastSpeechTime.current > 5000) setSilent(true)
+      const isSilent = Date.now() - lastSpeechTime.current > 3000
+      setSilent(isSilent)
+
+      // Only tick timer and streak while speaking
+      if (!isSilent) {
+        setTime(p => {
+          if (p <= 1) {
+            clearInterval(t)
+            stopTranscription()
+            stopFillerDetection()
+            stopMic()
+            const metrics = { fillerCount: getFillerCount(), durationSeconds: gameDuration, longestStreakSeconds: Math.floor((Date.now() - lastFillerTime.current) / 1000) }
+            const score = computeSimpleGameScore('filler-ninja', metrics)
+            useGameStore.getState().addGameResult({ gameType: 'filler-ninja', score, metrics, timestamp: Date.now() })
+            useSessionStore.getState().markPromptUsed(prompt)
+            useSessionStore.getState().recordGame('filler-ninja')
+            const badges = useSessionStore.getState().checkBadges()
+            playGameComplete()
+            if (badges && badges.length > 0) playBadgeEarned()
+            nav('/score/filler')
+            return 0
+          }
+          return p - 1
+        })
+        setStreak(Math.floor((Date.now() - lastFillerTime.current) / 1000))
+      }
     }, 1000)
     return () => clearInterval(t)
   }, [nav, ready, stopMic])

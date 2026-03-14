@@ -37,6 +37,7 @@ export default function EyeLock() {
   const finished = useRef(false)
 
   const eye = useEyeContact()
+  const videoRef = useRef<HTMLVideoElement | null>(null)
 
   // Auto-start when playing
   useEffect(() => {
@@ -46,23 +47,16 @@ export default function EyeLock() {
     return () => { cancelled = true }
   }, [phase, eye.init])
 
-  // Start tracking once video is playing
-  const handleStream = useCallback(() => {
-    if (!eye.modelReady) return
-    setTimeout(() => {
-      const video = document.querySelector('video') as HTMLVideoElement | null
-      if (video) eye.startTracking(video)
-    }, 600)
+  // Store video element when CameraFeed provides it
+  const handleVideoRef = useCallback((el: HTMLVideoElement) => {
+    videoRef.current = el
+    if (eye.modelReady) eye.startTracking(el)
   }, [eye.modelReady, eye.startTracking])
 
-  // Retry when model loads after stream
+  // Start tracking when model loads (if video already available)
   useEffect(() => {
-    if (!ready || !eye.modelReady) return
-    const t = setTimeout(() => {
-      const video = document.querySelector('video') as HTMLVideoElement | null
-      if (video) eye.startTracking(video)
-    }, 600)
-    return () => clearTimeout(t)
+    if (!ready || !eye.modelReady || !videoRef.current) return
+    eye.startTracking(videoRef.current)
   }, [ready, eye.modelReady, eye.startTracking])
 
   // Power ring: charges while maintaining eye contact
@@ -149,7 +143,7 @@ export default function EyeLock() {
       <CameraFeed
         style={{ width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', border: 'none', borderRadius: 0 }}
         withAudio={true}
-        onStream={handleStream}
+        onVideoRef={handleVideoRef}
         overlay={
           <EyeContactIndicator
             quality={eye.quality}
