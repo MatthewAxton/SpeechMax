@@ -54,10 +54,11 @@ function createRecognition(): SpeechRecognition {
   }
 
   rec.onerror = (event) => {
-    // Auto-restart on no-speech errors
-    if (event.error === 'no-speech' && active) {
+    console.warn('[SpeechMAX] SpeechRecognition error:', event.error)
+    // Auto-restart on recoverable errors
+    if (active && (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'network' || event.error === 'aborted')) {
       try { rec.stop() } catch { /* ignore */ }
-      setTimeout(() => { if (active) startInternal() }, 200)
+      setTimeout(() => { if (active) startInternal() }, 300)
     }
   }
 
@@ -75,8 +76,9 @@ function startInternal() {
   try {
     recognition = createRecognition()
     recognition.start()
-  } catch {
-    // Already started or other error — retry
+    console.log('[SpeechMAX] SpeechRecognition started')
+  } catch (e) {
+    console.warn('[SpeechMAX] SpeechRecognition start failed, retrying...', e)
     setTimeout(() => { if (active) startInternal() }, 500)
   }
 }

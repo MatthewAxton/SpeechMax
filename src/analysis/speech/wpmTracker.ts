@@ -22,13 +22,13 @@ let intervalId: ReturnType<typeof setInterval> | null = null
 let unsubTranscript: (() => void) | null = null
 
 function processTranscript(event: TranscriptEvent) {
-  if (!event.isFinal) return
-
   if (startTime === 0) startTime = Date.now()
 
-  const words = event.text.split(/\s+/).filter(Boolean).length
-  totalWords += words
-  buffer.push({ wordCount: words, timestamp: Date.now() })
+  if (event.isFinal) {
+    const words = event.text.split(/\s+/).filter(Boolean).length
+    totalWords += words
+    buffer.push({ wordCount: words, timestamp: Date.now() })
+  }
 }
 
 function pruneBuffer() {
