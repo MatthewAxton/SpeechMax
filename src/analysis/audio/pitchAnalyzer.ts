@@ -9,6 +9,7 @@ type AudioFrameCallback = (frame: AudioFrame) => void
 let audioContext: AudioContext | null = null
 let analyser: AnalyserNode | null = null
 let source: MediaStreamAudioSourceNode | null = null
+let compressor: DynamicsCompressorNode | null = null
 let rafId = 0
 let active = false
 const subscribers = new Set<AudioFrameCallback>()
@@ -88,11 +89,22 @@ export function startAudioAnalysis(stream: MediaStream): void {
 
   audioContext = new AudioContext()
   source = audioContext.createMediaStreamSource(stream)
+
+  // Dynamics compressor: reduces background noise and normalizes speech volume
+  compressor = audioContext.createDynamicsCompressor()
+  compressor.threshold.value = -40   // start compressing at -40dB
+  compressor.knee.value = 6
+  compressor.ratio.value = 4         // 4:1 compression
+  compressor.attack.value = 0.003
+  compressor.release.value = 0.25
+
   analyser = audioContext.createAnalyser()
   analyser.fftSize = FFT_SIZE
   analyser.smoothingTimeConstant = SMOOTHING
-  source.connect(analyser)
-  // Do NOT connect to destination — observation only, no playback
+
+  // Chain: source → compressor → analyser (no destination — observation only)
+  source.connect(compressor)
+  compressor.connect(analyser)
 
   rafId = requestAnimationFrame(tick)
 }
@@ -101,6 +113,7 @@ export function stopAudioAnalysis(): void {
   active = false
   cancelAnimationFrame(rafId)
   if (source) { source.disconnect(); source = null }
+  if (compressor) { compressor.disconnect(); compressor = null }
   if (analyser) { analyser.disconnect(); analyser = null }
   if (audioContext) { audioContext.close(); audioContext = null }
 }

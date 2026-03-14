@@ -26,7 +26,11 @@ export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style, w
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: withAudio,
+        audio: withAudio ? {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        } : false,
       })
       streamRef.current = stream
       if (videoRef.current) {

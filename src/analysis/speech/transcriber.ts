@@ -81,17 +81,29 @@ function createRecognition(): SpeechRecognition {
     if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null }
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i]
-      // Check all alternatives for best transcript
-      const text = result[0].transcript.trim()
       const isFinal = result.isFinal
-      const words = text.split(/\s+/).filter(Boolean).length
+
+      // Pick the best alternative by confidence score
+      let bestText = result[0].transcript.trim()
+      let bestConfidence = result[0].confidence
+      for (let j = 1; j < result.length; j++) {
+        if (result[j].confidence > bestConfidence) {
+          bestText = result[j].transcript.trim()
+          bestConfidence = result[j].confidence
+        }
+      }
+
+      // Skip very low confidence final results (likely noise)
+      if (isFinal && bestConfidence > 0 && bestConfidence < 0.3) continue
+
+      const words = bestText.split(/\s+/).filter(Boolean).length
 
       if (isFinal) {
         cumulativeWordCount += words
       }
 
       const transcriptEvent: TranscriptEvent = {
-        text,
+        text: bestText,
         isFinal,
         wordCount: isFinal ? cumulativeWordCount : cumulativeWordCount + words,
         timestamp: Date.now(),

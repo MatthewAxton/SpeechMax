@@ -9,7 +9,14 @@ export function useMicrophone() {
   const requestMic = useCallback(async () => {
     setState('requesting')
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      })
       streamRef.current = stream
       setState('active')
       return stream
