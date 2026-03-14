@@ -287,7 +287,7 @@ Camera/mic dropdowns via `enumerateDevices()`, sound on/off toggle, user level d
 
 ### 12.7 — Practice page (`/practice`) [DONE]
 
-Free-form practice mode: setup phase (textarea or "speak freely"), recording phase (fullscreen camera, manual stop, live WPM/filler HUD, elapsed timer), analyzing phase → nav to `/results`. Recording logic duplicated from RadarScan.
+Free-form practice mode: setup phase (textarea or "speak freely"), recording phase (fullscreen camera, manual stop, live WPM/filler HUD, elapsed timer), analyzing phase → own results page. Recording logic duplicated from RadarScan but scores computed locally via `computeRadarScores` — **does NOT save to scanStore** so real scores are never affected. Shows "Practice Mode" badge and mascot reassurance.
 
 ### 12.8 — Insights page (`/insights`) [DONE]
 
@@ -305,6 +305,26 @@ Weekly summary, improvement/weakness cards comparing axis averages, 5 sparklines
 **Files created:** `dateUtils.ts`, `goalConfig.ts`, `insightGenerator.ts`, `renderShareCard.ts`, `Sparkline.tsx`, `ShareModal.tsx`, `GoalTrackerCard.tsx`, `History.tsx`, `Practice.tsx`, `Library.tsx`, `Insights.tsx`, `Settings.tsx`
 
 **Files modified:** `sessionStore.ts`, `App.tsx`, `GameQueue.tsx`, `ScoreCard.tsx`, `Progress.tsx`
+
+### 12.10 — Eye Lock game overhaul [DONE]
+
+Made eye contact tracking feel impactful:
+- Screen dims to 70% black when gaze is lost (was barely noticeable 45%), 40% when drifting
+- "LOOK AT THE CAMERA!" warning with AlertTriangle icon appears center-screen when gaze is lost
+- Warning beep sound (`playCountdownBeep`) on gaze loss (1.5s cooldown)
+- Green edge glow when locked, red vignette when lost, green recovery flash on re-lock
+- Prominent score % display in top-right with color-coded border
+- Current streak badge with live second counter next to power ring
+
+**Files:** `EyeLock.tsx`
+
+### 12.11 — Page polish pass [DONE]
+
+All support pages (History, Library, Insights, Settings) updated with:
+- Mike mascot with contextual speech bubble at the top of each page
+- Wider max-width layouts (900px+) for better spacing
+- Larger padding, font sizes, and card spacing — no longer cramped
+- Practice setup page also has mascot explaining "Practice mode won't affect your scores"
 
 ---
 
