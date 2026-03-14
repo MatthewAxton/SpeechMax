@@ -4,38 +4,58 @@ import { Crosshair, Eye, Activity, Waves, Shield, Flame, Play } from 'lucide-rea
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
 import { RadarChart } from '../components/radar-chart'
+import { useScanStore } from '../../store/scanStore'
+import { useGameStore } from '../../store/gameStore'
+import { useSessionStore } from '../../store/sessionStore'
+import type { GameType } from '../../analysis/types'
 
-const games = [
-  { name: 'Filler Ninja', axis: 'Clarity', time: '90s', score: 42, icon: Crosshair, path: '/countdown?next=/filler-ninja', priority: true },
-  { name: 'Eye Lock', axis: 'Confidence', time: '45s', score: 58, icon: Eye, path: '/countdown?next=/eye-lock' },
-  { name: 'Pace Racer', axis: 'Pacing', time: '60s', score: 61, icon: Activity, path: '/countdown?next=/pace-racer' },
-  { name: 'Pitch Surfer', axis: 'Expression', time: '30s', score: 70, icon: Waves, path: '/countdown?next=/pitch-surfer' },
-  { name: 'Statue Mode', axis: 'Composure', time: '45s', score: 74, icon: Shield, path: '/countdown?next=/statue-mode' },
-]
+const GAME_META: Record<GameType, { name: string; axis: string; time: string; icon: typeof Crosshair; path: string }> = {
+  'filler-ninja': { name: 'Filler Ninja', axis: 'Clarity', time: '90s', icon: Crosshair, path: '/countdown?next=/filler-ninja' },
+  'eye-lock': { name: 'Eye Lock', axis: 'Confidence', time: '45s', icon: Eye, path: '/countdown?next=/eye-lock' },
+  'pace-racer': { name: 'Pace Racer', axis: 'Pacing', time: '60s', icon: Activity, path: '/countdown?next=/pace-racer' },
+  'pitch-surfer': { name: 'Pitch Surfer', axis: 'Expression', time: '30s', icon: Waves, path: '/countdown?next=/pitch-surfer' },
+  'statue-mode': { name: 'Statue Mode', axis: 'Composure', time: '45s', icon: Shield, path: '/countdown?next=/statue-mode' },
+}
+const AXIS_MAP: Record<GameType, 'clarity' | 'confidence' | 'pacing' | 'expression' | 'composure'> = {
+  'filler-ninja': 'clarity', 'eye-lock': 'confidence', 'pace-racer': 'pacing', 'pitch-surfer': 'expression', 'statue-mode': 'composure',
+}
 
 export default function GameQueue() {
   const nav = useNavigate()
+  const getLatestScores = useScanStore((s) => s.getLatestScores)
+  const getRecommendedGameOrder = useGameStore((s) => s.getRecommendedGameOrder)
+  const streakDays = useSessionStore((s) => s.streakDays)
+
+  const latestScores = getLatestScores()
+  const scores = latestScores ?? { clarity: 42, confidence: 58, pacing: 61, expression: 70, composure: 74, overall: 67 }
+  const gameOrder = getRecommendedGameOrder()
+
+  const games = gameOrder.map((gameType, i) => {
+    const meta = GAME_META[gameType]
+    const axisKey = AXIS_MAP[gameType]
+    return { ...meta, gameType, score: Math.round(scores[axisKey]), priority: i === 0 }
+  })
+
+  const weakestName = games[0]?.axis ?? 'Clarity'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <TopBanner title={<>Speech<span style={{ color: 'var(--purple)' }}>MAX</span></>} showBack={false} right={<span style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700 }}><Flame size={14} /> 7 Day Streak</span>} />
+      <TopBanner title={<>Speech<span style={{ color: 'var(--purple)' }}>MAX</span></>} showBack={false} right={<span style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700 }}><Flame size={14} /> {streakDays || 1} Day Streak</span>} />
 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '0 32px' }}>
         <div style={{ display: 'flex', gap: 24, width: '100%', maxWidth: 1200, alignItems: 'stretch' }}>
 
           {/* LEFT COLUMN — Mike + Score */}
           <div style={{ width: 320, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* Mike Container */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
               style={{ background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(194,143,231,0.12)', borderRadius: 24, padding: '24px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 8px 32px rgba(194,143,231,0.1)' }}
             >
-              <MikeWithBubble text="Your biggest opportunity: <strong style='color:var(--purple)'>Clarity</strong>. Let's fix that first." size={90} delay={0.6} />
+              <MikeWithBubble text={`Your biggest opportunity: <strong style='color:var(--purple)'>${weakestName}</strong>. Let's fix that first.`} size={90} delay={0.6} />
             </motion.div>
 
-            {/* Score Container */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -43,11 +63,11 @@ export default function GameQueue() {
               style={{ background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', border: '1px solid rgba(194,143,231,0.12)', borderRadius: 24, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, boxShadow: '0 8px 32px rgba(194,143,231,0.1)' }}
             >
               <RadarChart
-                scores={{ clarity: 42, confidence: 58, pacing: 61, expression: 70, composure: 74 }}
+                scores={{ clarity: scores.clarity, confidence: scores.confidence, pacing: scores.pacing, expression: scores.expression, composure: scores.composure }}
                 size={200}
                 animated={false}
               />
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.5 }} style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, marginTop: 4, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>67</motion.div>
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.5 }} style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, marginTop: 4, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{Math.round(scores.overall)}</motion.div>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)', marginTop: 2 }}>Your Speech<span style={{ color: 'var(--purple)' }}>MAX</span> Score</div>
             </motion.div>
           </div>
@@ -104,7 +124,7 @@ export default function GameQueue() {
       </div>
 
       <BottomBanner
-        left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>Let's fix Clarity first.</div>}
+        left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>Let's fix {weakestName} first.</div>}
         center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 20, fontWeight: 800 }}>5 Games</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Personalised training</div></div>}
         right={<><Play size={18} /> Start</>}
       />

@@ -4,30 +4,62 @@ import { Crosshair, Eye, Activity, Waves, Shield, ArrowRight } from 'lucide-reac
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
 import { RadarChart } from '../components/radar-chart'
+import { useScanStore } from '../../store/scanStore'
 
-const axes = [
-  { name: 'Clarity', score: 42, icon: Crosshair, tip: 'You said "um" 6 times. Target: 0–2 per minute.' },
-  { name: 'Confidence', score: 58, icon: Eye, tip: 'Eye contact dropped below 50% in the last 15 seconds.' },
-  { name: 'Pacing', score: 61, icon: Activity, tip: 'Your pace spiked to 175 WPM mid-session.' },
-  { name: 'Expression', score: 70, icon: Waves, tip: 'Good pitch variation. 12s of monotone detected.' },
-  { name: 'Composure', score: 74, icon: Shield, tip: 'Steady posture. Minor hand fidgeting at 0:45.' },
-]
+const AXIS_ICONS = [Crosshair, Eye, Activity, Waves, Shield]
+const AXIS_NAMES = ['Clarity', 'Confidence', 'Pacing', 'Expression', 'Composure']
+const AXIS_KEYS = ['clarity', 'confidence', 'pacing', 'expression', 'composure'] as const
+const AXIS_TIPS: Record<string, (score: number) => string> = {
+  clarity: (s) => s >= 80 ? 'Excellent! Very few filler words.' : s >= 50 ? 'Some filler words detected. Try pausing instead.' : 'High filler word density. Replace fillers with pauses.',
+  confidence: (s) => s >= 80 ? 'Strong eye contact and posture!' : s >= 50 ? 'Eye contact dropped in parts. Stay focused on camera.' : 'Eye contact and posture need work. Look at the camera more.',
+  pacing: (s) => s >= 80 ? 'Great pace — clear and steady.' : s >= 50 ? 'Pace varied a bit. Try to stay in the 120-160 WPM zone.' : 'Pace was inconsistent. Practice speaking at a steady rhythm.',
+  expression: (s) => s >= 80 ? 'Dynamic and expressive delivery!' : s >= 50 ? 'Good variation. Add more emphasis on key words.' : 'Delivery was flat. Vary your pitch to keep listeners engaged.',
+  composure: (s) => s >= 80 ? 'Calm and composed throughout!' : s >= 50 ? 'Some fidgeting detected. Try keeping hands still.' : 'Lots of movement. Plant your feet and keep hands steady.',
+}
+
+function getGrade(overall: number): string {
+  if (overall >= 90) return 'A+'
+  if (overall >= 80) return 'A'
+  if (overall >= 70) return 'B+'
+  if (overall >= 60) return 'B'
+  if (overall >= 50) return 'C+'
+  if (overall >= 40) return 'C'
+  return 'D'
+}
 
 export default function RadarResults() {
   const nav = useNavigate()
+  const getLatestScores = useScanStore((s) => s.getLatestScores)
+  const latestScores = getLatestScores()
+
+  const scores = latestScores ?? { clarity: 42, confidence: 58, pacing: 61, expression: 70, composure: 74, overall: 67 }
+  const overall = scores.overall
+  const grade = getGrade(overall)
+
+  // Find weakest axis for mascot message
+  const weakest = AXIS_KEYS.reduce((min, key) => scores[key] < scores[min] ? key : min, AXIS_KEYS[0])
+  const weakestName = AXIS_NAMES[AXIS_KEYS.indexOf(weakest)]
+
+  const axes = AXIS_KEYS.map((key, i) => ({
+    name: AXIS_NAMES[i],
+    score: Math.round(scores[key]),
+    icon: AXIS_ICONS[i],
+    tip: AXIS_TIPS[key](scores[key]),
+  }))
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <TopBanner title={<>Speech<span style={{ color: 'var(--purple)' }}>MAX</span></>} showBack={false} right={<span style={{ fontSize: 13, opacity: 0.8 }}>Today, 2:41pm</span>} />
+      <TopBanner title={<>Speech<span style={{ color: 'var(--purple)' }}>MAX</span></>} showBack={false} right={<span style={{ fontSize: 13, opacity: 0.8 }}>Today, {new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 1060, display: 'flex', gap: 56, padding: '8px 48px', alignItems: 'center' }}>
           <div style={{ width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <MikeWithBubble text="Here's your profile! Let's work on <strong style='color:var(--purple)'>Clarity</strong> first." state="talking" size={110} />
+            <MikeWithBubble text={`Here's your profile! Let's work on <strong style='color:var(--purple)'>${weakestName}</strong> first.`} state="talking" size={110} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '8px 0' }}>
-              <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }} style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>67</motion.span>
-              <div><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Speech<span style={{ color: 'var(--purple)' }}>MAX</span> Score</div><div style={{ display: 'inline-block', background: 'var(--surface)', color: 'var(--purple)', fontSize: 20, fontWeight: 800, padding: '4px 16px', borderRadius: 12, marginTop: 4 }}>B+</div></div>
+              <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }} style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{Math.round(overall)}</motion.span>
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Speech<span style={{ color: 'var(--purple)' }}>MAX</span> Score</div><div style={{ display: 'inline-block', background: 'var(--surface)', color: 'var(--purple)', fontSize: 20, fontWeight: 800, padding: '4px 16px', borderRadius: 12, marginTop: 4 }}>{grade}</div></div>
             </div>
             <RadarChart
-              scores={{ clarity: 42, confidence: 58, pacing: 61, expression: 70, composure: 74 }}
+              scores={{ clarity: scores.clarity, confidence: scores.confidence, pacing: scores.pacing, expression: scores.expression, composure: scores.composure }}
               size={320}
               animated={true}
             />
@@ -49,7 +81,7 @@ export default function RadarResults() {
           </div>
         </div>
       </div>
-      <BottomBanner left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>Let's work on Clarity first!</div>} center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 22, fontWeight: 800 }}>5 Games Ready</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Personalised for you</div></div>} right={<ArrowRight size={18} />} />
+      <BottomBanner left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>Let's work on {weakestName} first!</div>} center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 22, fontWeight: 800 }}>5 Games Ready</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Personalised for you</div></div>} right={<ArrowRight size={18} />} />
     </div>
   )
 }

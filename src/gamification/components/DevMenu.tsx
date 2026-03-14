@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react'
 
 const routes = [
   { path: '/', label: 'Homepage' },
+  { path: '/onboarding', label: 'Onboarding' },
   { path: '/scan', label: 'Radar Scan' },
   { path: '/results', label: 'Radar Results' },
   { path: '/queue', label: 'Game Queue' },
@@ -16,6 +17,7 @@ const routes = [
   { path: '/score/filler', label: 'Score: Filler Ninja' },
   { path: '/score/eyelock', label: 'Score: Eye Lock' },
   { path: '/score/pitch', label: 'Score: Pitch Surfer' },
+  { path: '/progress', label: 'Progress' },
 ]
 
 export function DevMenu() {

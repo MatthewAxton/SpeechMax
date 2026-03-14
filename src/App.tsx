@@ -14,6 +14,8 @@ import PaceRacer from './gamification/screens/PaceRacer'
 import PitchSurfer from './gamification/screens/PitchSurfer'
 import StatueMode from './gamification/screens/StatueMode'
 import ScoreCard from './gamification/screens/ScoreCard'
+import Onboarding from './gamification/screens/Onboarding'
+import Progress from './gamification/screens/Progress'
 import { DevMenu } from './gamification/components/DevMenu'
 import './App.css'
 
@@ -55,6 +57,8 @@ function AnimatedRoutes() {
             <Route path="/pitch-surfer" element={<PitchSurfer />} />
             <Route path="/statue-mode" element={<StatueMode />} />
             <Route path="/score/:game" element={<ScoreCard />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/progress" element={<Progress />} />
           </Route>
         </Routes>
       </motion.div>
@@ -80,8 +84,8 @@ function Homepage() {
   const navigate = useNavigate()
   const pos = mascotPositions[screen]
 
-  // When user clicks "START SESSION" on goal screen, navigate to scan
-  const handleGoalNext = () => navigate('/scan')
+  // When user clicks "START SESSION" on goal screen, navigate to onboarding
+  const handleGoalNext = () => navigate('/onboarding')
 
   return (
     <div

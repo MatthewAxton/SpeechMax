@@ -4,6 +4,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { TrendingUp, AlertCircle, CheckCircle, Clock, Eye, Lock, EyeOff, Waves, Minus, ArrowRight, Activity, Shield } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
+import { useGameStore } from '../../store/gameStore'
+import { useSessionStore } from '../../store/sessionStore'
+import type { GameType } from '../../analysis/types'
+
+const GAME_KEY_MAP: Record<string, GameType> = {
+  filler: 'filler-ninja', eyelock: 'eye-lock', pace: 'pace-racer', pitch: 'pitch-surfer', statue: 'statue-mode',
+}
 
 const data: Record<string, { title: string; axis: string; score: number; prev: number; icon: any; message: string; stats: { icon: any; label: string; value: string; green?: boolean }[]; next: string; replay: string }> = {
   filler: { title: 'Filler Ninja', axis: 'Clarity', score: 78, prev: 42, icon: AlertCircle, message: "36 points in one session. That's real progress!", stats: [{ icon: AlertCircle, label: 'Filler words detected', value: '2' }, { icon: CheckCircle, label: 'Clean streaks', value: '3', green: true }, { icon: Clock, label: 'Best filler-free streak', value: '23s' }], next: '/countdown?next=/eye-lock', replay: '/countdown?next=/filler-ninja' },
@@ -17,7 +24,25 @@ export default function ScoreCard() {
   const { game } = useParams<{ game: string }>()
   const nav = useNavigate()
   const d = data[game || 'filler']
-  const improvement = d.score - d.prev
+
+  // Store integration
+  const gameType = GAME_KEY_MAP[game || 'filler']
+  const getLastResult = useGameStore((s) => s.getLastResult)
+  const recordGame = useSessionStore((s) => s.recordGame)
+  const checkBadges = useSessionStore((s) => s.checkBadges)
+
+  const lastResult = getLastResult(gameType)
+  const currentScore = lastResult?.score ?? d.score
+  const prevScore = d.prev
+  const improvement = currentScore - prevScore
+
+  // Record the game on mount
+  useEffect(() => {
+    if (gameType) {
+      recordGame(gameType)
+      checkBadges()
+    }
+  }, [gameType, recordGame, checkBadges])
 
   const [showConfetti, setShowConfetti] = useState(true)
 
@@ -68,8 +93,8 @@ export default function ScoreCard() {
             <MikeWithBubble text={d.message} state="talking" size={90} delay={1.5} />
           </motion.div>
           <div style={{ height: 8 }} />
-          <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 8, stiffness: 150, delay: 0.5 }} style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{d.score}</motion.div>
-          <div style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 600, margin: '4px 0 6px' }}>was {d.prev} → now {d.score}</div>
+          <motion.div initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 8, stiffness: 150, delay: 0.5 }} style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{currentScore}</motion.div>
+          <div style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 600, margin: '4px 0 6px' }}>was {prevScore} → now {currentScore}</div>
           <motion.div initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 10, delay: 0.7 }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#E8F9D4', color: 'var(--green)', fontSize: 13, fontWeight: 700, padding: '4px 12px', borderRadius: 10, marginBottom: 16 }}><TrendingUp size={13} /> +{improvement} improvement</motion.div>
           <div style={{ width: '100%', maxWidth: 480, marginBottom: 16 }}>
             {d.stats.map((s, i) => (
