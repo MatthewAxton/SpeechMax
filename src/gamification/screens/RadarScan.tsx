@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Activity, Eye } from 'lucide-react'
@@ -6,15 +6,83 @@ import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
 import { AudioWave } from '../components/AudioWave'
 import { CameraFeed } from '../components/CameraFeed'
+import { startTranscription, stopTranscription } from '../../analysis/speech/transcriber'
+import { startFillerDetection, stopFillerDetection, getFillerCount } from '../../analysis/speech/fillerDetector'
+import { startWpmTracking, stopWpmTracking, getRollingWpm } from '../../analysis/speech/wpmTracker'
+import { startAudioAnalysis, stopAudioAnalysis } from '../../analysis/audio/pitchAnalyzer'
+import { useScanStore } from '../../store/scanStore'
+import { useSessionStore } from '../../store/sessionStore'
 
 export default function RadarScan() {
   const nav = useNavigate()
   const [time, setTime] = useState(3)
+  const [wpm, setWpm] = useState(0)
+  const [fillers, setFillers] = useState(0)
+  const micStarted = useRef(false)
 
+  // Start scan in store
+  const startScan = useScanStore((s) => s.startScan)
+  const appendRawData = useScanStore((s) => s.appendRawData)
+  const completeScan = useScanStore((s) => s.completeScan)
+  const recordScan = useSessionStore((s) => s.recordScan)
+
+  // Start mic + analysis when camera stream is ready (audio comes with it)
+  const handleStream = useCallback((stream: MediaStream) => {
+    if (micStarted.current) return
+    micStarted.current = true
+
+    // Start all analysis modules
+    startTranscription()
+    startFillerDetection()
+    startWpmTracking()
+    startAudioAnalysis(stream)
+    startScan()
+  }, [startScan])
+
+  // Update live metrics
   useEffect(() => {
-    const t = setInterval(() => setTime(p => { if (p <= 1) { clearInterval(t); nav('/results'); return 0 } return p - 1 }), 1000)
+    const wpmInterval = setInterval(() => {
+      setWpm(getRollingWpm())
+      setFillers(getFillerCount())
+    }, 500)
+    return () => clearInterval(wpmInterval)
+  }, [])
+
+  // Timer countdown
+  useEffect(() => {
+    const t = setInterval(() => setTime(p => {
+      if (p <= 1) {
+        clearInterval(t)
+
+        // Stop all analysis
+        stopTranscription()
+        stopFillerDetection()
+        stopWpmTracking()
+        stopAudioAnalysis()
+
+        // Save scan data to store
+        appendRawData({
+          durationSeconds: 3,
+          fillerCount: getFillerCount(),
+          wordCount: 0, // tracked internally by transcriber
+          avgWpm: getRollingWpm(),
+          wpmStdDev: 10,
+          eyeContactPercent: 70, // placeholder until MediaPipe wired
+          postureScore: 75,
+          pitchStdDev: 35,
+          stillnessPercent: 80,
+          fidgetCount: 2,
+        })
+        completeScan()
+        recordScan()
+
+        nav('/results')
+        return 0
+      }
+      return p - 1
+    }), 1000)
     return () => clearInterval(t)
-  }, [nav])
+  }, [nav, appendRawData, completeScan, recordScan])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -26,6 +94,8 @@ export default function RadarScan() {
             style={{ width: '100%', maxWidth: 640, margin: '10px 0' }}>
             <CameraFeed
               style={{ height: 260 }}
+              withAudio={true}
+              onStream={handleStream}
               overlay={
                 <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 2 }}
                   style={{ position: 'absolute', bottom: 12, right: 12, background: 'var(--purple)', color: 'white', fontSize: 18, fontWeight: 800, padding: '6px 16px', borderRadius: 12 }}>
@@ -44,8 +114,8 @@ export default function RadarScan() {
           </div>
           <AudioWave />
           <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-            <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '6px 14px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><Activity size={14} color="var(--purple)" /> <span style={{ color: 'var(--purple)', fontWeight: 700 }}>142 WPM</span></span>
-            <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '6px 14px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><Eye size={14} color="var(--purple)" /> <span style={{ color: 'var(--purple)', fontWeight: 700 }}>78%</span></span>
+            <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '6px 14px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><Activity size={14} color="var(--purple)" /> <span style={{ color: 'var(--purple)', fontWeight: 700 }}>{wpm} WPM</span></span>
+            <span style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '6px 14px', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}><Eye size={14} color="var(--purple)" /> <span style={{ color: 'var(--purple)', fontWeight: 700 }}>{fillers} fillers</span></span>
           </div>
         </div>
       </div>

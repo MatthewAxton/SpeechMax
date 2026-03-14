@@ -8,9 +8,13 @@ interface CameraFeedProps {
   mirror?: boolean
   borderRadius?: number
   style?: React.CSSProperties
+  /** Also request microphone access (for screens that need both) */
+  withAudio?: boolean
+  /** Callback with the MediaStream when camera is ready */
+  onStream?: (stream: MediaStream) => void
 }
 
-export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style }: CameraFeedProps) {
+export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style, withAudio = false, onStream }: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [state, setState] = useState<CameraState>('idle')
@@ -20,13 +24,14 @@ export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style }:
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
+        audio: withAudio,
       })
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
       }
       setState('active')
+      if (onStream) onStream(stream)
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setState('denied')
