@@ -274,9 +274,9 @@ React error boundary with mascot + "Something went wrong" + "Go Home" button. Ca
 
 ---
 
-## Sprint 4: Game Visual Upgrades
+## Sprint 4: Game Visual Upgrades [COMPLETE]
 
-### 4.1 — Filler Ninja: floating targets + slash animation [M]
+### 4.1 — Filler Ninja: floating targets + slash animation [DONE]
 
 **Brief:** "Filler words appear as floating targets. Ninja slash animation cuts through them."
 
@@ -286,7 +286,7 @@ Add: floating word bubbles that drift across screen, ninja slash SVG animation o
 
 ---
 
-### 4.2 — Eye Lock: full-screen pulse/dim [S]
+### 4.2 — Eye Lock: full-screen pulse/dim [DONE]
 
 **Brief:** "Screen pulses green when locked, dims when looking away."
 
@@ -296,7 +296,7 @@ Add full-screen overlay: `quality === 'good'` → subtle green pulse (0.02 opaci
 
 ---
 
-### 4.3 — Pitch Surfer: ocean wave + surfing mascot [M]
+### 4.3 — Pitch Surfer: ocean wave + surfing mascot [DONE]
 
 **Brief:** "Ocean wave responds to pitch. Mascot surfs the wave. Flat pitch = flat water = wipeout."
 
@@ -306,7 +306,7 @@ Replace purple SVG waveform with ocean-themed gradient (blues/teals). Add Mike m
 
 ---
 
-### 4.4 — Statue Mode: body outline heatmap [M]
+### 4.4 — Statue Mode: body outline heatmap [DONE]
 
 **Brief:** "Body outline heatmap — areas with excess movement glow red."
 
@@ -316,7 +316,7 @@ Replace rectangular SVG boxes with a body outline where regions glow green→yel
 
 ---
 
-### 4.5 — Pace Racer: glow/pulse effects [S]
+### 4.5 — Pace Racer: glow/pulse effects [DONE]
 
 Add green glow (box-shadow animation) on progress bar when in 120-160 WPM zone. Pulse the WPM number. Red warning glow when outside zone.
 
