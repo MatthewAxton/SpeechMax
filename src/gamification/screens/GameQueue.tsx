@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { Crosshair, Eye, Activity, Waves, Shield, Flame, Play } from 'lucide-react'
+import { Crosshair, Eye, Activity, Waves, Shield, Flame } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
 import { RadarChart } from '../components/radar-chart'
@@ -8,6 +8,7 @@ import { useScanStore } from '../../store/scanStore'
 import { useGameStore } from '../../store/gameStore'
 import { useSessionStore } from '../../store/sessionStore'
 import type { GameType } from '../../analysis/types'
+import { useRequireScan } from '../hooks/useRequireScan'
 
 const GAME_META: Record<GameType, { name: string; axis: string; time: string; icon: typeof Crosshair; path: string }> = {
   'filler-ninja': { name: 'Filler Ninja', axis: 'Clarity', time: '90s', icon: Crosshair, path: '/countdown?next=/filler-ninja' },
@@ -21,12 +22,14 @@ const AXIS_MAP: Record<GameType, 'clarity' | 'confidence' | 'pacing' | 'expressi
 }
 
 export default function GameQueue() {
+  const hasScans = useRequireScan()
   const nav = useNavigate()
   const getLatestScores = useScanStore((s) => s.getLatestScores)
   const getRecommendedGameOrder = useGameStore((s) => s.getRecommendedGameOrder)
   const streakDays = useSessionStore((s) => s.streakDays)
 
   const latestScores = getLatestScores()
+  if (!hasScans) return null
   const scores = latestScores ?? { clarity: 42, confidence: 58, pacing: 61, expression: 70, composure: 74, overall: 67 }
   const gameOrder = getRecommendedGameOrder()
 
@@ -126,7 +129,10 @@ export default function GameQueue() {
       <BottomBanner
         left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>Let's fix {weakestName} first.</div>}
         center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 20, fontWeight: 800 }}>5 Games</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Personalised training</div></div>}
-        right={<><Play size={18} /> Start</>}
+        right={
+          <button className="btn-secondary" style={{ height: 36, fontSize: 13, padding: '0 14px' }}
+            onClick={() => nav('/scan')}>Rescan</button>
+        }
       />
     </div>
   )

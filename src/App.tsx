@@ -17,14 +17,17 @@ import ScoreCard from './gamification/screens/ScoreCard'
 import Onboarding from './gamification/screens/Onboarding'
 import Progress from './gamification/screens/Progress'
 import { DevMenu } from './gamification/components/DevMenu'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import './App.css'
 
 /* ====== ROOT APP WITH ROUTER ====== */
 export default function App() {
   return (
     <BrowserRouter>
-      <AnimatedRoutes />
-      <DevMenu />
+      <ErrorBoundary>
+        <AnimatedRoutes />
+      </ErrorBoundary>
+      {import.meta.env.DEV && <DevMenu />}
     </BrowserRouter>
   )
 }

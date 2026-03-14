@@ -6,6 +6,7 @@ import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
 import { useGameStore } from '../../store/gameStore'
 import type { GameType } from '../../analysis/types'
+import { useRequireScan } from '../hooks/useRequireScan'
 
 const GAME_KEY_MAP: Record<string, GameType> = {
   filler: 'filler-ninja', eyelock: 'eye-lock', pace: 'pace-racer', pitch: 'pitch-surfer', statue: 'statue-mode',
@@ -72,11 +73,13 @@ function getStats(game: string, metrics: Record<string, number>) {
 }
 
 export default function ScoreCard() {
+  const hasScans = useRequireScan()
   const { game } = useParams<{ game: string }>()
   const nav = useNavigate()
   const config = gameConfigs[game || 'filler']
   const gameType = GAME_KEY_MAP[game || 'filler']
 
+  if (!hasScans) return null
   const gameHistory = useGameStore((s) => s.gameHistory)
 
   // Get results for this game type

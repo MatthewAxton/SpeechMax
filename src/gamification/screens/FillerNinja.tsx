@@ -11,10 +11,15 @@ import { useMicrophone } from '../../analysis/hooks/useMicrophone'
 import { computeSimpleGameScore } from '../../analysis/scoring/gameScorer'
 import { useGameStore } from '../../store/gameStore'
 import { useSessionStore } from '../../store/sessionStore'
+import { useRequireScan } from '../hooks/useRequireScan'
 
 export default function FillerNinja() {
+  const hasScans = useRequireScan()
   const nav = useNavigate()
-  const [time, setTime] = useState(90)
+  const [prompt] = useState(() => useSessionStore.getState().getUnusedPrompt('interview'))
+  const [difficulty] = useState(() => useGameStore.getState().getDifficultyFor('filler-ninja'))
+  const gameDuration = difficulty === 'hard' ? 120 : 90
+  const [time, setTime] = useState(gameDuration)
   const [streak, setStreak] = useState(0)
   const [fillers, setFillers] = useState(0)
   const [lastFiller, setLastFiller] = useState<string | null>(null)
@@ -63,9 +68,10 @@ export default function FillerNinja() {
           stopTranscription()
           stopFillerDetection()
           stopMic()
-          const metrics = { fillerCount: getFillerCount(), durationSeconds: 90, longestStreakSeconds: Math.floor((Date.now() - lastFillerTime.current) / 1000) }
+          const metrics = { fillerCount: getFillerCount(), durationSeconds: gameDuration, longestStreakSeconds: Math.floor((Date.now() - lastFillerTime.current) / 1000) }
           const score = computeSimpleGameScore('filler-ninja', metrics)
           useGameStore.getState().addGameResult({ gameType: 'filler-ninja', score, metrics, timestamp: Date.now() })
+          useSessionStore.getState().markPromptUsed(prompt)
           useSessionStore.getState().recordGame('filler-ninja')
           useSessionStore.getState().checkBadges()
           nav('/score/filler')
@@ -79,17 +85,18 @@ export default function FillerNinja() {
     return () => clearInterval(t)
   }, [nav, ready, stopMic])
 
+  if (!hasScans) return null
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {!ready && <GraceCountdown onReady={onReady} prompt="Describe a time you solved a difficult problem at work." promptLabel="Interview — Professional" />}
+      {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Interview Question" />}
       <TopBanner backTo="/queue" title="Filler Ninja"
-        center={<><span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span><div style={{ width: 160, height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' }}><motion.div animate={{ width: `${((90-time)/90)*100}%` }} style={{ height: '100%', background: 'white', borderRadius: 4 }} /></div></>}
-        right={<span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}><Zap size={14} /> {fillers}</span>} />
+        center={<><span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span><div style={{ width: 160, height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' }}><motion.div animate={{ width: `${((gameDuration-time)/gameDuration)*100}%` }} style={{ height: '100%', background: 'white', borderRadius: 4 }} /></div></>}
+        right={<><span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}><Zap size={14} /> {fillers}</span><span style={{ background: `${difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02'}30`, color: difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, textTransform: 'uppercase' }}>{difficulty}</span></>} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 40px' }}>
           <div className="card" style={{ width: '100%', maxWidth: 600, textAlign: 'center', marginBottom: 12, padding: '20px 28px' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--muted)', marginBottom: 8 }}>Interview — Professional</div>
-            <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.4 }}>Describe a time you solved a difficult problem at work.</div>
+            <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--muted)', marginBottom: 8 }}>Interview Question</div>
+            <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.4 }}>{prompt}</div>
           </div>
           <div style={{ maxWidth: 520, textAlign: 'center', fontSize: 16, fontWeight: 500, color: 'var(--muted)', lineHeight: 1.8, marginBottom: 12, minHeight: 60 }}>
             {liveText || <span style={{ opacity: 0.4 }}>Start speaking...</span>}

@@ -6,16 +6,19 @@ import { RadarChart } from '../components/radar-chart'
 import { RadarOverlay } from '../components/radar-chart/RadarOverlay'
 import { MikeWithBubble } from '../components/Mike'
 import { useScanStore } from '../../store/scanStore'
+import { useRequireScan } from '../hooks/useRequireScan'
 import { useSessionStore } from '../../store/sessionStore'
 import BADGES from '../../lib/badges'
 
 export default function Progress() {
+  const hasScans = useRequireScan()
   const nav = useNavigate()
   const getLatestScores = useScanStore((s) => s.getLatestScores)
   const getPreviousScores = useScanStore((s) => s.getPreviousScores)
   const latestScores = getLatestScores()
   const previousScores = getPreviousScores()
 
+  if (!hasScans) return null
   const totalScans = useSessionStore((s) => s.totalScans)
   const totalGames = useSessionStore((s) => s.totalGames)
   const streakDays = useSessionStore((s) => s.streakDays)

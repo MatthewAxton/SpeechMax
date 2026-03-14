@@ -209,9 +209,9 @@ Many screens hardcode `background: 'white'`, `color: '#1A1A1A'`, etc. These won'
 
 ---
 
-## Sprint 3: UX Flow Completion
+## Sprint 3: UX Flow Completion [COMPLETE]
 
-### 3.1 — Blackout transition: scan → results [S]
+### 3.1 — Blackout transition: scan → results [DONE]
 
 Add a 2-second dramatic black screen with pulsing "Analyzing your speech..." text between scan completion and results page. Use a local `phase` state in RadarScan.
 
@@ -219,7 +219,7 @@ Add a 2-second dramatic black screen with pulsing "Analyzing your speech..." tex
 
 ---
 
-### 3.2 — Rescan flow with radar overlay animation [S]
+### 3.2 — Rescan flow with radar overlay animation [DONE]
 
 When user has multiple scans, RadarResults should show previous scores as grey dashed polygon behind current scores (RadarOverlay component already exists). Add delta labels (+5, -3) per axis. Add a "Rescan" button on GameQueue and Progress pages that navigates back to `/scan`.
 
@@ -230,7 +230,7 @@ When user has multiple scans, RadarResults should show previous scores as grey d
 
 ---
 
-### 3.3 — Per-game prompt picker [M]
+### 3.3 — Per-game prompt picker [DONE]
 
 Currently each game hardcodes its prompt text. Use `sessionStore.getUnusedPrompt(category)` to give each game a fresh prompt. Can integrate into the GraceCountdown component or add a pre-game prompt selection step.
 
@@ -238,7 +238,7 @@ Currently each game hardcodes its prompt text. Use `sessionStore.getUnusedPrompt
 
 ---
 
-### 3.4 — Wire difficulty auto-scaling [S]
+### 3.4 — Wire difficulty auto-scaling [DONE]
 
 `gameStore.getDifficultyFor(game)` already returns easy/medium/hard based on scan scores. Games should consume this to adjust parameters (timer duration, target zones, thresholds).
 
@@ -246,17 +246,17 @@ Currently each game hardcodes its prompt text. Use `sessionStore.getUnusedPrompt
 
 ---
 
-### 3.5 — Route guards [S]
+### 3.5 — Route guards [DONE]
 
 Create `useRequireScan()` hook — redirect to `/scan` if no scan exists. Apply to `/results`, `/queue`, game screens.
 
 **Files:**
-- New: `src/gamification/hooks/useRouteGuard.ts`
-- `src/gamification/screens/RadarResults.tsx`, `GameQueue.tsx`
+- New: `src/gamification/hooks/useRequireScan.ts`
+- `src/gamification/screens/RadarResults.tsx`, `GameQueue.tsx`, `ScoreCard.tsx`, `Progress.tsx`, all 5 game screens
 
 ---
 
-### 3.6 — Hide DevMenu in production [S]
+### 3.6 — Hide DevMenu in production [DONE]
 
 Wrap DevMenu in `import.meta.env.DEV` check or add a keyboard shortcut toggle (Ctrl+Shift+D).
 
@@ -264,7 +264,7 @@ Wrap DevMenu in `import.meta.env.DEV` check or add a keyboard shortcut toggle (C
 
 ---
 
-### 3.7 — ErrorBoundary [S]
+### 3.7 — ErrorBoundary [DONE]
 
 React error boundary with mascot + "Something went wrong" + "Go Home" button. Catches MediaPipe failures, camera errors, etc.
 

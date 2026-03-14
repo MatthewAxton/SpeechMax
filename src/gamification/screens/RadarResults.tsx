@@ -4,7 +4,9 @@ import { Crosshair, Eye, Activity, Waves, Shield, ArrowRight } from 'lucide-reac
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
 import { RadarChart } from '../components/radar-chart'
+import { RadarOverlay } from '../components/radar-chart/RadarOverlay'
 import { useScanStore } from '../../store/scanStore'
+import { useRequireScan } from '../hooks/useRequireScan'
 
 const AXIS_ICONS = [Crosshair, Eye, Activity, Waves, Shield]
 const AXIS_NAMES = ['Clarity', 'Confidence', 'Pacing', 'Expression', 'Composure']
@@ -28,10 +30,14 @@ function getGrade(overall: number): string {
 }
 
 export default function RadarResults() {
+  const hasScans = useRequireScan()
   const nav = useNavigate()
   const getLatestScores = useScanStore((s) => s.getLatestScores)
+  const getPreviousScores = useScanStore((s) => s.getPreviousScores)
   const latestScores = getLatestScores()
+  const previousScores = getPreviousScores()
 
+  if (!hasScans) return null
   const scores = latestScores ?? { clarity: 42, confidence: 58, pacing: 61, expression: 70, composure: 74, overall: 67 }
   const overall = scores.overall
   const grade = getGrade(overall)
@@ -58,11 +64,20 @@ export default function RadarResults() {
               <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.3 }} style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>{Math.round(overall)}</motion.span>
               <div><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>Speech<span style={{ color: 'var(--purple)' }}>MAX</span> Score</div><div style={{ display: 'inline-block', background: 'var(--surface)', color: 'var(--purple)', fontSize: 20, fontWeight: 800, padding: '4px 16px', borderRadius: 12, marginTop: 4 }}>{grade}</div></div>
             </div>
-            <RadarChart
-              scores={{ clarity: scores.clarity, confidence: scores.confidence, pacing: scores.pacing, expression: scores.expression, composure: scores.composure }}
-              size={320}
-              animated={true}
-            />
+            {previousScores ? (
+              <RadarOverlay
+                scores={{ clarity: scores.clarity, confidence: scores.confidence, pacing: scores.pacing, expression: scores.expression, composure: scores.composure }}
+                previousScores={{ clarity: previousScores.clarity, confidence: previousScores.confidence, pacing: previousScores.pacing, expression: previousScores.expression, composure: previousScores.composure }}
+                size={320}
+                animated={true}
+              />
+            ) : (
+              <RadarChart
+                scores={{ clarity: scores.clarity, confidence: scores.confidence, pacing: scores.pacing, expression: scores.expression, composure: scores.composure }}
+                size={320}
+                animated={true}
+              />
+            )}
           </div>
           <div style={{ flex: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--muted)', marginBottom: 14 }}>Per-Axis Breakdown</div>

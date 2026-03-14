@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Activity, Eye } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
@@ -24,6 +24,7 @@ function computeStdDev(values: number[]): number {
 
 export default function RadarScan() {
   const nav = useNavigate()
+  const [phase, setPhase] = useState<'scanning' | 'analyzing'>('scanning')
   const [time, setTime] = useState(30)
   const [wpm, setWpm] = useState(0)
   const [fillers, setFillers] = useState(0)
@@ -142,7 +143,7 @@ export default function RadarScan() {
         useSessionStore.getState().recordScan()
         useSessionStore.getState().checkBadges()
 
-        nav('/results')
+        setPhase('analyzing')
         return 0
       }
       return p - 1
@@ -150,8 +151,40 @@ export default function RadarScan() {
     return () => clearInterval(t)
   }, [nav, appendRawData, completeScan])
 
+  // Navigate after analyzing phase
+  useEffect(() => {
+    if (phase !== 'analyzing') return
+    const t = setTimeout(() => nav('/results'), 2000)
+    return () => clearTimeout(t)
+  }, [phase, nav])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <AnimatePresence>
+        {phase === 'analyzing' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#050508', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+              style={{ fontSize: 28, fontWeight: 800, background: 'linear-gradient(135deg, #C28FE7, #8B5CF6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+            >
+              Analysing your speech...
+            </motion.div>
+            <motion.div
+              animate={{ opacity: [0.3, 0.7, 0.3] }}
+              transition={{ repeat: Infinity, duration: 2.5 }}
+              style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}
+            >
+              Building your speech profile
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <TopBanner title="30-Second Scan" center={<span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span>} right={<span style={{ fontSize: 13, opacity: 0.8 }}>Analysing your speech...</span>} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 40px' }}>

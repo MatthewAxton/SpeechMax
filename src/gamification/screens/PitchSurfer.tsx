@@ -11,10 +11,15 @@ import { useMicrophone } from '../../analysis/hooks/useMicrophone'
 import { computeSimpleGameScore } from '../../analysis/scoring/gameScorer'
 import { useGameStore } from '../../store/gameStore'
 import { useSessionStore } from '../../store/sessionStore'
+import { useRequireScan } from '../hooks/useRequireScan'
 
 export default function PitchSurfer() {
+  const hasScans = useRequireScan()
   const nav = useNavigate()
-  const [time, setTime] = useState(30)
+  const [prompt] = useState(() => useSessionStore.getState().getUnusedPrompt('professional'))
+  const [difficulty] = useState(() => useGameStore.getState().getDifficultyFor('pitch-surfer'))
+  const gameDuration = difficulty === 'hard' ? 45 : 30
+  const [time, setTime] = useState(gameDuration)
   const [ready, setReady] = useState(false)
   const [pitchHistory, setPitchHistory] = useState<number[]>([])
   const [currentPitch, setCurrentPitch] = useState(0)
@@ -91,9 +96,10 @@ export default function PitchSurfer() {
                 return sum + (v - mean) ** 2
               }, 0) / pitchBuffer.current.length)
             : 0
-          const metrics = { pitchVariation: pitchVar, monotoneSeconds: monotoneSeconds.current, totalSeconds: 30 }
+          const metrics = { pitchVariation: pitchVar, monotoneSeconds: monotoneSeconds.current, totalSeconds: gameDuration }
           const score = computeSimpleGameScore('pitch-surfer', metrics)
           useGameStore.getState().addGameResult({ gameType: 'pitch-surfer', score, metrics, timestamp: Date.now() })
+          useSessionStore.getState().markPromptUsed(prompt)
           useSessionStore.getState().recordGame('pitch-surfer')
           useSessionStore.getState().checkBadges()
           nav('/score/pitch')
@@ -105,13 +111,14 @@ export default function PitchSurfer() {
     return () => clearInterval(t)
   }, [nav, ready, stopMic])
 
+  if (!hasScans) return null
   const variationColor = variation === 'high' ? 'var(--green)' : variation === 'good' ? 'var(--purple)' : 'var(--red)'
   const VariationIcon = variation === 'low' ? Minus : TrendingUp
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {!ready && <GraceCountdown onReady={onReady} prompt="We need to talk about the quarterly results. The numbers show a significant improvement." promptLabel="Read With Expression" />}
-      <TopBanner backTo="/queue" title="Pitch Surfer" center={<span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span>} right={<span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}><Zap size={14} /> {Math.round(currentPitch)}Hz</span>} />
+      {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Read With Expression" />}
+      <TopBanner backTo="/queue" title="Pitch Surfer" center={<span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span>} right={<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}><Zap size={14} /> {Math.round(currentPitch)}Hz</span><span style={{ background: `${difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02'}30`, color: difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, textTransform: 'uppercase' }}>{difficulty}</span></div>} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 40px' }}>
           <div style={{ width: '100%', maxWidth: 800, height: 220, position: 'relative', marginBottom: 12 }}>
@@ -127,7 +134,7 @@ export default function PitchSurfer() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: variationColor, fontSize: 16, fontWeight: 700, marginBottom: 10 }}><VariationIcon size={18} /> {variation === 'high' ? 'HIGH VARIATION — Great!' : variation === 'good' ? 'GOOD VARIATION' : 'LOW VARIATION — Add expression!'}</div>
           <div className="card" style={{ width: '100%', maxWidth: 600, textAlign: 'center', padding: '18px 28px', marginBottom: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--muted)', marginBottom: 6 }}>Read With Expression</div>
-            <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>We need to talk about the quarterly results. The numbers show a significant improvement.</div>
+            <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{prompt}</div>
           </div>
           <AudioWave />
         </div>

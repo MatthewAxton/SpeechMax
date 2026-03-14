@@ -11,12 +11,17 @@ import { useEyeContact } from '../../analysis/hooks/useEyeContact'
 import { computeSimpleGameScore } from '../../analysis/scoring/gameScorer'
 import { useGameStore } from '../../store/gameStore'
 import { useSessionStore } from '../../store/sessionStore'
+import { useRequireScan } from '../hooks/useRequireScan'
 
 const QUALITY_COLORS = { good: '#58CC02', weak: '#F5A623', lost: '#FF4B4B' }
 
 export default function EyeLock() {
+  const hasScans = useRequireScan()
   const nav = useNavigate()
-  const [time, setTime] = useState(45)
+  const [prompt] = useState(() => useSessionStore.getState().getUnusedPrompt('interview'))
+  const [difficulty] = useState(() => useGameStore.getState().getDifficultyFor('eye-lock'))
+  const gameDuration = difficulty === 'hard' ? 60 : 45
+  const [time, setTime] = useState(gameDuration)
   const [ready, setReady] = useState(false)
 
   const eye = useEyeContact()
@@ -55,6 +60,7 @@ export default function EyeLock() {
         const metrics = { gazeLockedPercent: eye.sessionPercent, longestGazeSeconds: eye.longestStreak }
         const score = computeSimpleGameScore('eye-lock', metrics)
         useGameStore.getState().addGameResult({ gameType: 'eye-lock', score, metrics, timestamp: Date.now() })
+        useSessionStore.getState().markPromptUsed(prompt)
         useSessionStore.getState().recordGame('eye-lock')
         useSessionStore.getState().checkBadges()
         nav('/score/eyelock')
@@ -65,13 +71,14 @@ export default function EyeLock() {
     return () => clearInterval(t)
   }, [nav, ready, eye.stopTracking])
 
+  if (!hasScans) return null
   const color = QUALITY_COLORS[eye.quality]
   const mins = Math.floor(time / 60)
   const secs = time % 60
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {!ready && <GraceCountdown onReady={onReady} prompt="What's your greatest professional strength?" promptLabel="Behavioral Question" />}
+      {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Behavioral Question" />}
 
       <TopBanner
         backTo="/queue"
@@ -91,9 +98,12 @@ export default function EyeLock() {
           </div>
         }
         right={
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}>
-            <Zap size={14} /> Best: {eye.longestStreak}s
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}>
+              <Zap size={14} /> Best: {eye.longestStreak}s
+            </span>
+            <span style={{ background: `${difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02'}30`, color: difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, textTransform: 'uppercase' }}>{difficulty}</span>
+          </div>
         }
       />
 
@@ -128,7 +138,7 @@ export default function EyeLock() {
           {/* Question card */}
           <div className="card" style={{ width: '100%', maxWidth: 600, textAlign: 'center', padding: '18px 28px', marginBottom: 12 }}>
             <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--muted)', marginBottom: 6 }}>Behavioral Question</div>
-            <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>What's your greatest professional strength?</div>
+            <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{prompt}</div>
           </div>
 
           <AudioWave />
