@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Lock } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
@@ -79,6 +79,39 @@ export default function EyeLock() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
       {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Behavioral Question" />}
+
+      <AnimatePresence>
+        {ready && eye.quality === 'good' && (
+          <motion.div
+            key="pulse-good"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(88,204,2,0.03)', pointerEvents: 'none', zIndex: 5 }}
+          />
+        )}
+        {ready && eye.quality === 'weak' && (
+          <motion.div
+            key="pulse-weak"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: 5 }}
+          />
+        )}
+        {ready && eye.quality === 'lost' && (
+          <motion.div
+            key="pulse-lost"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8 }}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', pointerEvents: 'none', zIndex: 5 }}
+          />
+        )}
+      </AnimatePresence>
 
       <TopBanner
         backTo="/queue"
