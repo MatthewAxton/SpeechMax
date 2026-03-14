@@ -93,8 +93,8 @@ function createRecognition(): SpeechRecognition {
         }
       }
 
-      // Skip very low confidence final results (likely noise)
-      if (isFinal && bestConfidence > 0 && bestConfidence < 0.3) continue
+      // Skip empty results
+      if (!bestText) continue
 
       const words = bestText.split(/\s+/).filter(Boolean).length
 
