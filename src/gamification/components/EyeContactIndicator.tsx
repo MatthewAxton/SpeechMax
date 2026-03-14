@@ -34,44 +34,32 @@ export function EyeContactIndicator({
         transition: 'box-shadow 0.5s ease',
       }} />
 
-      {/* Eye tracking circles — positioned at actual eye locations */}
-      {leftEyePos && (
-        <div style={{
+      {/* Eye tracking reticles — squared brackets with crosshair lines */}
+      {[leftEyePos, rightEyePos].map((eyePos, i) => eyePos && (
+        <div key={i} style={{
           position: 'absolute', pointerEvents: 'none',
-          left: `${(1 - leftEyePos.x) * 100}%`,
-          top: `${leftEyePos.y * 100}%`,
-          width: 60, height: 60,
-          marginLeft: -30, marginTop: -30,
+          left: `${(1 - eyePos.x) * 100}%`,
+          top: `${eyePos.y * 100}%`,
+          width: 64, height: 64,
+          marginLeft: -32, marginTop: -32,
           transition: 'left 0.1s ease-out, top 0.1s ease-out',
         }}>
-          <svg width={60} height={60}>
-            <circle cx={30} cy={30} r={26} fill="none"
-              stroke={color} strokeWidth={4} opacity={0.9}
-              style={{ transition: 'stroke 0.3s ease', filter: `drop-shadow(0 0 12px ${color})` }} />
-            <circle cx={30} cy={30} r={5} fill={color}
-              style={{ transition: 'fill 0.3s ease', filter: `drop-shadow(0 0 6px ${color})` }} />
+          <svg width={64} height={64} style={{ filter: `drop-shadow(0 0 6px ${color}80)` }}>
+            {/* Corner brackets */}
+            <path d="M4,18 L4,4 L18,4" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" style={{ transition: 'stroke 0.3s' }} />
+            <path d="M46,4 L60,4 L60,18" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" style={{ transition: 'stroke 0.3s' }} />
+            <path d="M60,46 L60,60 L46,60" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" style={{ transition: 'stroke 0.3s' }} />
+            <path d="M18,60 L4,60 L4,46" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" style={{ transition: 'stroke 0.3s' }} />
+            {/* Crosshair lines */}
+            <line x1={32} y1={22} x2={32} y2={28} stroke={color} strokeWidth={1.5} opacity={0.6} />
+            <line x1={32} y1={36} x2={32} y2={42} stroke={color} strokeWidth={1.5} opacity={0.6} />
+            <line x1={22} y1={32} x2={28} y2={32} stroke={color} strokeWidth={1.5} opacity={0.6} />
+            <line x1={36} y1={32} x2={42} y2={32} stroke={color} strokeWidth={1.5} opacity={0.6} />
+            {/* Center dot */}
+            <circle cx={32} cy={32} r={3} fill={color} style={{ transition: 'fill 0.3s', filter: `drop-shadow(0 0 4px ${color})` }} />
           </svg>
         </div>
-      )}
-
-      {rightEyePos && (
-        <div style={{
-          position: 'absolute', pointerEvents: 'none',
-          left: `${(1 - rightEyePos.x) * 100}%`,
-          top: `${rightEyePos.y * 100}%`,
-          width: 60, height: 60,
-          marginLeft: -30, marginTop: -30,
-          transition: 'left 0.1s ease-out, top 0.1s ease-out',
-        }}>
-          <svg width={60} height={60}>
-            <circle cx={30} cy={30} r={26} fill="none"
-              stroke={color} strokeWidth={4} opacity={0.9}
-              style={{ transition: 'stroke 0.3s ease', filter: `drop-shadow(0 0 12px ${color})` }} />
-            <circle cx={30} cy={30} r={5} fill={color}
-              style={{ transition: 'fill 0.3s ease', filter: `drop-shadow(0 0 6px ${color})` }} />
-          </svg>
-        </div>
-      )}
+      ))}
 
       {/* Loading indicator when eye tracking model is initializing */}
       {!leftEyePos && !rightEyePos && (
