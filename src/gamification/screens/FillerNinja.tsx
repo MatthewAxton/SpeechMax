@@ -11,7 +11,7 @@ import { useMicrophone } from '../../analysis/hooks/useMicrophone'
 
 export default function FillerNinja() {
   const nav = useNavigate()
-  const [time, setTime] = useState(3)
+  const [time, setTime] = useState(90)
   const [streak, setStreak] = useState(0)
   const [fillers, setFillers] = useState(0)
   const [lastFiller, setLastFiller] = useState<string | null>(null)
@@ -75,7 +75,7 @@ export default function FillerNinja() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
       {!ready && <GraceCountdown onReady={onReady} prompt="Describe a time you solved a difficult problem at work." promptLabel="Interview — Professional" />}
       <TopBanner backTo="/queue" title="Filler Ninja"
-        center={<><span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span><div style={{ width: 160, height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' }}><motion.div animate={{ width: `${((3-time)/3)*100}%` }} style={{ height: '100%', background: 'white', borderRadius: 4 }} /></div></>}
+        center={<><span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span><div style={{ width: 160, height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' }}><motion.div animate={{ width: `${((90-time)/90)*100}%` }} style={{ height: '100%', background: 'white', borderRadius: 4 }} /></div></>}
         right={<span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}><Zap size={14} /> {fillers}</span>} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 40px' }}>

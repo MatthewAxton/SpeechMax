@@ -11,7 +11,7 @@ import { useMicrophone } from '../../analysis/hooks/useMicrophone'
 
 export default function PaceRacer() {
   const nav = useNavigate()
-  const [time, setTime] = useState(3)
+  const [time, setTime] = useState(60)
   const [wpm, setWpm] = useState(0)
   const [timeInZone, setTimeInZone] = useState(0)
   const [ready, setReady] = useState(false)

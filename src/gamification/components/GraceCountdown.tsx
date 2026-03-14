@@ -10,7 +10,7 @@ interface GraceCountdownProps {
 const ease = [0.25, 0.46, 0.45, 0.94] as const
 
 export function GraceCountdown({ onReady, prompt, promptLabel }: GraceCountdownProps) {
-  const [count, setCount] = useState(3)
+  const [count, setCount] = useState(5)
   const [done, setDone] = useState(false)
 
   useEffect(() => {

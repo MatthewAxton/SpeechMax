@@ -9,7 +9,7 @@ import { initPoseTracker, startPoseTracking, stopPoseTracking, onPoseFrame } fro
 
 export default function StatueMode() {
   const nav = useNavigate()
-  const [time, setTime] = useState(3)
+  const [time, setTime] = useState(45)
   const [ready, setReady] = useState(false)
   const [composureScore, setComposureScore] = useState(100)
   const [movementAlerts, setMovementAlerts] = useState(0)

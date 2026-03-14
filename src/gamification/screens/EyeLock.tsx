@@ -11,7 +11,7 @@ import { useEyeContact } from '../../analysis/hooks/useEyeContact'
 
 export default function EyeLock() {
   const nav = useNavigate()
-  const [time, setTime] = useState(3)
+  const [time, setTime] = useState(45)
   const [ready, setReady] = useState(false)
 
   const {

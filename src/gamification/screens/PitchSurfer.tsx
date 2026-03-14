@@ -11,7 +11,7 @@ import { useMicrophone } from '../../analysis/hooks/useMicrophone'
 
 export default function PitchSurfer() {
   const nav = useNavigate()
-  const [time, setTime] = useState(3)
+  const [time, setTime] = useState(30)
   const [ready, setReady] = useState(false)
   const [pitchHistory, setPitchHistory] = useState<number[]>([])
   const [currentPitch, setCurrentPitch] = useState(0)

@@ -15,7 +15,7 @@ import { useSessionStore } from '../../store/sessionStore'
 
 export default function RadarScan() {
   const nav = useNavigate()
-  const [time, setTime] = useState(3)
+  const [time, setTime] = useState(30)
   const [wpm, setWpm] = useState(0)
   const [fillers, setFillers] = useState(0)
   const micStarted = useRef(false)
@@ -62,7 +62,7 @@ export default function RadarScan() {
 
         // Save scan data to store
         appendRawData({
-          durationSeconds: 3,
+          durationSeconds: 30,
           fillerCount: getFillerCount(),
           wordCount: 0, // tracked internally by transcriber
           avgWpm: getRollingWpm(),
