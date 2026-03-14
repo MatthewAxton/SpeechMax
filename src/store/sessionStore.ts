@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { StateStorage } from 'zustand/middleware'
 import type { PromptCategory, BadgeContext, GameType } from '../analysis/types'
 import BADGES from '../lib/badges'
 import PROMPTS from '../lib/prompts'
@@ -29,7 +31,27 @@ interface SessionState {
   recordGame: (game: GameType) => void
 }
 
-export const useSessionStore = create<SessionState>((set, get) => ({
+const sessionStorage: StateStorage = {
+  getItem: (name) => {
+    const str = localStorage.getItem(name)
+    if (!str) return null
+    const parsed = JSON.parse(str)
+    if (parsed.state.usedPrompts) parsed.state.usedPrompts = new Set(parsed.state.usedPrompts)
+    if (parsed.state.earnedBadges) parsed.state.earnedBadges = new Set(parsed.state.earnedBadges)
+    return JSON.stringify(parsed)
+  },
+  setItem: (name, value) => {
+    const parsed = JSON.parse(value)
+    if (parsed.state.usedPrompts instanceof Set) parsed.state.usedPrompts = [...parsed.state.usedPrompts]
+    if (parsed.state.earnedBadges instanceof Set) parsed.state.earnedBadges = [...parsed.state.earnedBadges]
+    localStorage.setItem(name, JSON.stringify(parsed))
+  },
+  removeItem: (name) => localStorage.removeItem(name),
+}
+
+export const useSessionStore = create<SessionState>()(
+  persist(
+    (set, get) => ({
   usedPrompts: new Set(),
   earnedBadges: new Set(),
   personalBests: {
@@ -134,4 +156,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }))
     get().incrementStreak()
   },
-}))
+}),
+    {
+      name: 'speechmax-session',
+      storage: {
+        getItem: (name) => {
+          const result = sessionStorage.getItem(name)
+          if (!result) return null
+          return JSON.parse(result)
+        },
+        setItem: (name, value) => {
+          sessionStorage.setItem(name, JSON.stringify(value))
+        },
+        removeItem: (name) => sessionStorage.removeItem(name),
+      },
+    }
+  )
+)

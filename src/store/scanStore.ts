@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { ScanResult, ScanRawData, RadarScores } from '../analysis/types'
 import { computeRadarScores } from '../analysis/scoring/radarScorer'
 
@@ -15,7 +16,9 @@ interface ScanState {
   getPreviousScores: () => RadarScores | null
 }
 
-export const useScanStore = create<ScanState>((set, get) => ({
+export const useScanStore = create<ScanState>()(
+  persist(
+    (set, get) => ({
   scans: [],
   currentScanId: null,
   isScanning: false,
@@ -90,4 +93,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
     const { scans } = get()
     return scans.length > 1 ? scans[scans.length - 2].scores : null
   },
-}))
+}),
+    { name: 'speechmax-scan' }
+  )
+)

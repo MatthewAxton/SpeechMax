@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { GameType, GameResult, Difficulty } from '../analysis/types'
 import { useScanStore } from './scanStore'
 
@@ -22,7 +23,9 @@ interface GameState {
   getRecommendedGameOrder: () => GameType[]
 }
 
-export const useGameStore = create<GameState>((set, get) => ({
+export const useGameStore = create<GameState>()(
+  persist(
+    (set, get) => ({
   gameHistory: [],
   currentGameType: null,
 
@@ -67,4 +70,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return scoreA - scoreB // lowest score first = highest priority
     })
   },
-}))
+}),
+    { name: 'speechmax-game' }
+  )
+)
