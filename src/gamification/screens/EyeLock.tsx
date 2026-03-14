@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Lock } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
-import { GraceCountdown } from '../components/GraceCountdown'
 import { CameraFeed } from '../components/CameraFeed'
 import { EyeContactIndicator } from '../components/EyeContactIndicator'
 import { useEyeContact } from '../../analysis/hooks/useEyeContact'
@@ -24,12 +23,15 @@ export default function EyeLock() {
   const gameDuration = difficulty === 'hard' ? 60 : 45
   const [time, setTime] = useState(gameDuration)
   const [ready, setReady] = useState(false)
+  const finished = useRef(false)
 
   const eye = useEyeContact()
 
-  const onReady = useCallback(async () => {
-    await eye.init()
-    setReady(true)
+  // Auto-start on mount
+  useEffect(() => {
+    let cancelled = false
+    eye.init().then(() => { if (!cancelled) setReady(true) })
+    return () => { cancelled = true }
   }, [eye.init])
 
   // Start tracking once video is playing
@@ -51,28 +53,34 @@ export default function EyeLock() {
     return () => clearTimeout(t)
   }, [ready, eye.modelReady, eye.startTracking])
 
+  const finishGame = useCallback(() => {
+    if (finished.current) return
+    finished.current = true
+    eye.stopTracking()
+    const metrics = { gazeLockedPercent: eye.sessionPercent, longestGazeSeconds: eye.longestStreak }
+    const score = computeSimpleGameScore('eye-lock', metrics)
+    useGameStore.getState().addGameResult({ gameType: 'eye-lock', score, metrics, timestamp: Date.now() })
+    useSessionStore.getState().markPromptUsed(prompt)
+    useSessionStore.getState().recordGame('eye-lock')
+    const badges = useSessionStore.getState().checkBadges()
+    playGameComplete()
+    if (badges && badges.length > 0) playBadgeEarned()
+    nav('/score/eyelock')
+  }, [eye, nav, prompt])
+
   // Timer
   useEffect(() => {
     if (!ready) return
     const t = setInterval(() => setTime(p => {
       if (p <= 1) {
         clearInterval(t)
-        eye.stopTracking()
-        const metrics = { gazeLockedPercent: eye.sessionPercent, longestGazeSeconds: eye.longestStreak }
-        const score = computeSimpleGameScore('eye-lock', metrics)
-        useGameStore.getState().addGameResult({ gameType: 'eye-lock', score, metrics, timestamp: Date.now() })
-        useSessionStore.getState().markPromptUsed(prompt)
-        useSessionStore.getState().recordGame('eye-lock')
-        const badges = useSessionStore.getState().checkBadges()
-        playGameComplete()
-        if (badges && badges.length > 0) playBadgeEarned()
-        nav('/score/eyelock')
+        finishGame()
         return 0
       }
       return p - 1
     }), 1000)
     return () => clearInterval(t)
-  }, [nav, ready, eye.stopTracking])
+  }, [nav, ready, finishGame])
 
   if (!hasScans) return null
   const color = QUALITY_COLORS[eye.quality]
@@ -81,8 +89,6 @@ export default function EyeLock() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Behavioral Question" />}
-
       <AnimatePresence>
         {ready && eye.quality === 'good' && (
           <motion.div
@@ -178,6 +184,16 @@ export default function EyeLock() {
           </div>
 
           <AudioWave />
+          {time < gameDuration - 10 && (
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={finishGame}
+              style={{ marginTop: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '10px 28px', fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}
+            >
+              Finish Early
+            </motion.button>
+          )}
         </div>
       </div>
 

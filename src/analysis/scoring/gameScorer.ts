@@ -67,7 +67,7 @@ export function computeGameScore(metrics: GameMetrics): number {
     case 'pitch-surfer': {
       const { pitchVariation, monotoneSeconds, totalSeconds } = metrics.data
       if (totalSeconds <= 0) return 50
-      const variationScore = Math.min(60, pitchVariation * 1.5)
+      const variationScore = Math.min(60, pitchVariation * 3)
       const monotonePenalty = (monotoneSeconds / totalSeconds) * 40
       return clamp(variationScore + 40 - monotonePenalty)
     }

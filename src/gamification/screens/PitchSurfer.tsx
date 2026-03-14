@@ -5,7 +5,6 @@ import { Zap, TrendingUp, Minus } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { Mike } from '../components/Mike'
 import { AudioWave } from '../components/AudioWave'
-import { GraceCountdown } from '../components/GraceCountdown'
 import { startAudioAnalysis, stopAudioAnalysis, onAudioFrame } from '../../analysis/audio/pitchAnalyzer'
 import { useMicrophone } from '../../analysis/hooks/useMicrophone'
 import { computeSimpleGameScore } from '../../analysis/scoring/gameScorer'
@@ -29,11 +28,17 @@ export default function PitchSurfer() {
   const [wiping, setWiping] = useState(false)
   const pitchBuffer = useRef<number[]>([])
   const monotoneSeconds = useRef(0)
+  const finished = useRef(false)
 
-  const onReady = useCallback(async () => {
-    const stream = await requestMic()
-    if (stream) startAudioAnalysis(stream)
-    setReady(true)
+  // Auto-start on mount
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const stream = await requestMic()
+      if (!cancelled && stream) startAudioAnalysis(stream)
+      if (!cancelled) setReady(true)
+    })()
+    return () => { cancelled = true }
   }, [requestMic])
 
   // Listen for real pitch data
@@ -84,36 +89,43 @@ export default function PitchSurfer() {
 
   const strokePath = wavePath.replace(/ L\d+,220 L0,220 Z$/, '')
 
+  const finishGame = useCallback(() => {
+    if (finished.current) return
+    finished.current = true
+    stopAudioAnalysis()
+    stopMic()
+    const pitchVar = pitchBuffer.current.length >= 2
+      ? Math.sqrt(pitchBuffer.current.reduce((sum, v, _, arr) => {
+          const mean = arr.reduce((a, b) => a + b, 0) / arr.length
+          return sum + (v - mean) ** 2
+        }, 0) / pitchBuffer.current.length)
+      : 0
+    const elapsed = gameDuration - time
+    const metrics = { pitchVariation: pitchVar, monotoneSeconds: monotoneSeconds.current, totalSeconds: Math.max(1, elapsed) }
+    const score = computeSimpleGameScore('pitch-surfer', metrics)
+    useGameStore.getState().addGameResult({ gameType: 'pitch-surfer', score, metrics, timestamp: Date.now() })
+    useSessionStore.getState().markPromptUsed(prompt)
+    useSessionStore.getState().recordGame('pitch-surfer')
+    const badges = useSessionStore.getState().checkBadges()
+    playGameComplete()
+    if (badges && badges.length > 0) playBadgeEarned()
+    nav('/score/pitch')
+  }, [stopMic, gameDuration, time, nav, prompt])
+
   useEffect(() => {
     if (!ready) return
     const t = setInterval(() => {
       setTime(p => {
         if (p <= 1) {
           clearInterval(t)
-          stopAudioAnalysis()
-          stopMic()
-          const pitchVar = pitchBuffer.current.length >= 2
-            ? Math.sqrt(pitchBuffer.current.reduce((sum, v, _, arr) => {
-                const mean = arr.reduce((a, b) => a + b, 0) / arr.length
-                return sum + (v - mean) ** 2
-              }, 0) / pitchBuffer.current.length)
-            : 0
-          const metrics = { pitchVariation: pitchVar, monotoneSeconds: monotoneSeconds.current, totalSeconds: gameDuration }
-          const score = computeSimpleGameScore('pitch-surfer', metrics)
-          useGameStore.getState().addGameResult({ gameType: 'pitch-surfer', score, metrics, timestamp: Date.now() })
-          useSessionStore.getState().markPromptUsed(prompt)
-          useSessionStore.getState().recordGame('pitch-surfer')
-          const badges = useSessionStore.getState().checkBadges()
-          playGameComplete()
-          if (badges && badges.length > 0) playBadgeEarned()
-          nav('/score/pitch')
+          finishGame()
           return 0
         }
         return p - 1
       })
     }, 1000)
     return () => clearInterval(t)
-  }, [nav, ready, stopMic])
+  }, [nav, ready, finishGame])
 
   if (!hasScans) return null
   const variationColor = variation === 'high' ? 'var(--green)' : variation === 'good' ? 'var(--purple)' : 'var(--red)'
@@ -125,7 +137,6 @@ export default function PitchSurfer() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Read With Expression" />}
       <TopBanner backTo="/queue" title="Pitch Surfer" center={<span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span>} right={<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}><Zap size={14} /> {Math.round(currentPitch)}Hz</span><span style={{ background: `${difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02'}30`, color: difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, textTransform: 'uppercase' }}>{difficulty}</span></div>} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 40px' }}>
@@ -194,6 +205,16 @@ export default function PitchSurfer() {
             <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.4 }}>{prompt}</div>
           </div>
           <AudioWave />
+          {time < gameDuration - 10 && (
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={finishGame}
+              style={{ marginTop: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '10px 28px', fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}
+            >
+              Finish Early
+            </motion.button>
+          )}
         </div>
       </div>
       <BottomBanner left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>{variation === 'high' ? 'Ride the wave! Great variation.' : 'Vary your pitch more!'}</div>} center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 22, fontWeight: 800, color: variationColor }}>{variation === 'low' ? 'Flat' : variation === 'good' ? 'Good' : 'High'}</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Pitch Variation</div></div>} right={<><Zap size={14} /> {Math.round(currentPitch)}Hz</>} />
