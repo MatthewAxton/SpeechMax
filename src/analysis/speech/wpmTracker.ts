@@ -17,6 +17,7 @@ const subscribers = new Set<WpmCallback>()
 let startTime = 0
 let totalWords = 0
 const buffer: WordEntry[] = []
+const wpmSamples: number[] = []
 let intervalId: ReturnType<typeof setInterval> | null = null
 let unsubTranscript: (() => void) | null = null
 
@@ -53,13 +54,22 @@ export function getRollingWpm(): number {
 
 function emitReading() {
   const reading = { session: getSessionWpm(), rolling: getRollingWpm() }
+  wpmSamples.push(reading.rolling)
   subscribers.forEach((cb) => cb(reading))
+}
+
+export function getWpmStdDev(): number {
+  if (wpmSamples.length < 2) return 0
+  const mean = wpmSamples.reduce((a, b) => a + b, 0) / wpmSamples.length
+  const variance = wpmSamples.reduce((sum, v) => sum + (v - mean) ** 2, 0) / wpmSamples.length
+  return Math.sqrt(variance)
 }
 
 export function startWpmTracking(): void {
   startTime = 0
   totalWords = 0
   buffer.length = 0
+  wpmSamples.length = 0
   unsubTranscript = onTranscript(processTranscript)
   intervalId = setInterval(emitReading, 1000)
 }

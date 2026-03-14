@@ -12,9 +12,11 @@ interface CameraFeedProps {
   withAudio?: boolean
   /** Callback with the MediaStream when camera is ready */
   onStream?: (stream: MediaStream) => void
+  /** Callback with the video element when stream is active */
+  onVideoRef?: (el: HTMLVideoElement) => void
 }
 
-export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style, withAudio = false, onStream }: CameraFeedProps) {
+export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style, withAudio = false, onStream, onVideoRef }: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [state, setState] = useState<CameraState>('idle')
@@ -32,6 +34,7 @@ export function CameraFeed({ overlay, mirror = true, borderRadius = 20, style, w
       }
       setState('active')
       if (onStream) onStream(stream)
+      if (onVideoRef && videoRef.current) onVideoRef(videoRef.current)
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setState('denied')

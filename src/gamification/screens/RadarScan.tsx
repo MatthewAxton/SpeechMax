@@ -6,12 +6,21 @@ import { TopBanner, BottomBanner } from '../components/Banner'
 import { MikeWithBubble } from '../components/Mike'
 import { AudioWave } from '../components/AudioWave'
 import { CameraFeed } from '../components/CameraFeed'
-import { startTranscription, stopTranscription } from '../../analysis/speech/transcriber'
+import { startTranscription, stopTranscription, onTranscript } from '../../analysis/speech/transcriber'
 import { startFillerDetection, stopFillerDetection, getFillerCount } from '../../analysis/speech/fillerDetector'
-import { startWpmTracking, stopWpmTracking, getRollingWpm } from '../../analysis/speech/wpmTracker'
-import { startAudioAnalysis, stopAudioAnalysis } from '../../analysis/audio/pitchAnalyzer'
+import { startWpmTracking, stopWpmTracking, getRollingWpm, getWpmStdDev } from '../../analysis/speech/wpmTracker'
+import { startAudioAnalysis, stopAudioAnalysis, onAudioFrame } from '../../analysis/audio/pitchAnalyzer'
+import { initGazeEngine, startGazeTracking, stopGazeTracking, onGazeReading } from '../../analysis/mediapipe/gazeEngine'
+import { initPoseTracker, startPoseTracking, stopPoseTracking, onPoseFrame } from '../../analysis/mediapipe/poseTracker'
 import { useScanStore } from '../../store/scanStore'
 import { useSessionStore } from '../../store/sessionStore'
+
+function computeStdDev(values: number[]): number {
+  if (values.length < 2) return 0
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length
+  return Math.sqrt(variance)
+}
 
 export default function RadarScan() {
   const nav = useNavigate()
@@ -20,11 +29,30 @@ export default function RadarScan() {
   const [fillers, setFillers] = useState(0)
   const micStarted = useRef(false)
 
+  // Sensor accumulators
+  const gazeFrames = useRef({ good: 0, total: 0 })
+  const poseScores = useRef<number[]>([])
+  const stillFrames = useRef({ still: 0, total: 0 })
+  const fidgets = useRef(0)
+  const pitchReadings = useRef<number[]>([])
+  const wordCountRef = useRef(0)
+
   // Start scan in store
   const startScan = useScanStore((s) => s.startScan)
   const appendRawData = useScanStore((s) => s.appendRawData)
   const completeScan = useScanStore((s) => s.completeScan)
-  const recordScan = useSessionStore((s) => s.recordScan)
+
+  // Start MediaPipe when video element is available
+  const handleVideoRef = useCallback(async (video: HTMLVideoElement) => {
+    try {
+      await initGazeEngine()
+      startGazeTracking(video)
+    } catch { /* gaze may fail — continue */ }
+    try {
+      await initPoseTracker()
+      startPoseTracking(video)
+    } catch { /* pose may fail — continue */ }
+  }, [])
 
   // Start mic + analysis when camera stream is ready (audio comes with it)
   const handleStream = useCallback((stream: MediaStream) => {
@@ -38,6 +66,32 @@ export default function RadarScan() {
     startAudioAnalysis(stream)
     startScan()
   }, [startScan])
+
+  // Subscribe to sensor callbacks
+  useEffect(() => {
+    const unsubGaze = onGazeReading((reading) => {
+      gazeFrames.current.total++
+      if (reading.quality === 'good') gazeFrames.current.good++
+    })
+    const unsubPose = onPoseFrame((frame) => {
+      poseScores.current.push(frame.postureScore)
+      stillFrames.current.total++
+      if (!frame.isFidgeting) stillFrames.current.still++
+      if (frame.isFidgeting) fidgets.current++
+    })
+    const unsubAudio = onAudioFrame((frame) => {
+      if (frame.pitch > 0) pitchReadings.current.push(frame.pitch)
+    })
+    const unsubTranscript = onTranscript((event) => {
+      if (event.isFinal) wordCountRef.current = event.wordCount
+    })
+    return () => {
+      unsubGaze()
+      unsubPose()
+      unsubAudio()
+      unsubTranscript()
+    }
+  }, [])
 
   // Update live metrics
   useEffect(() => {
@@ -59,22 +113,34 @@ export default function RadarScan() {
         stopFillerDetection()
         stopWpmTracking()
         stopAudioAnalysis()
+        stopGazeTracking()
+        stopPoseTracking()
 
-        // Save scan data to store
+        // Compute real sensor values
+        const eyeContactPercent = gazeFrames.current.total > 0
+          ? (gazeFrames.current.good / gazeFrames.current.total) * 100 : 50
+        const postureScore = poseScores.current.length > 0
+          ? poseScores.current.reduce((a, b) => a + b) / poseScores.current.length : 50
+        const pitchStdDev = computeStdDev(pitchReadings.current)
+        const stillnessPercent = stillFrames.current.total > 0
+          ? (stillFrames.current.still / stillFrames.current.total) * 100 : 50
+
+        // Save scan data to store with real values
         appendRawData({
           durationSeconds: 30,
           fillerCount: getFillerCount(),
-          wordCount: 0, // tracked internally by transcriber
+          wordCount: wordCountRef.current,
           avgWpm: getRollingWpm(),
-          wpmStdDev: 10,
-          eyeContactPercent: 70, // placeholder until MediaPipe wired
-          postureScore: 75,
-          pitchStdDev: 35,
-          stillnessPercent: 80,
-          fidgetCount: 2,
+          wpmStdDev: getWpmStdDev(),
+          eyeContactPercent: Math.round(eyeContactPercent),
+          postureScore: Math.round(postureScore),
+          pitchStdDev: Math.round(pitchStdDev),
+          stillnessPercent: Math.round(stillnessPercent),
+          fidgetCount: fidgets.current,
         })
         completeScan()
-        recordScan()
+        useSessionStore.getState().recordScan()
+        useSessionStore.getState().checkBadges()
 
         nav('/results')
         return 0
@@ -82,7 +148,7 @@ export default function RadarScan() {
       return p - 1
     }), 1000)
     return () => clearInterval(t)
-  }, [nav, appendRawData, completeScan, recordScan])
+  }, [nav, appendRawData, completeScan])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
@@ -96,6 +162,7 @@ export default function RadarScan() {
               style={{ height: 260 }}
               withAudio={true}
               onStream={handleStream}
+              onVideoRef={handleVideoRef}
               overlay={
                 <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 2 }}
                   style={{ position: 'absolute', bottom: 12, right: 12, background: 'var(--purple)', color: 'white', fontSize: 18, fontWeight: 800, padding: '6px 16px', borderRadius: 12 }}>
