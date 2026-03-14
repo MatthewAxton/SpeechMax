@@ -1,10 +1,9 @@
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Flame, Target, Gamepad2, Trophy } from 'lucide-react'
-import { TopBanner, BottomBanner } from '../components/Banner'
+import { TopBanner } from '../components/Banner'
 import { RadarChart } from '../components/radar-chart'
 import { RadarOverlay } from '../components/radar-chart/RadarOverlay'
-import { MikeWithBubble } from '../components/Mike'
 import { useScanStore } from '../../store/scanStore'
 import { useRequireScan } from '../hooks/useRequireScan'
 import { useSessionStore } from '../../store/sessionStore'
@@ -152,11 +151,6 @@ export default function Progress() {
         </div>
       </div>
 
-      <BottomBanner
-        left={<MikeWithBubble text="Keep practicing! Every session counts." size={36} delay={0.5} />}
-        center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 18, fontWeight: 800 }}>Progress</div></div>}
-        right={<div style={{ display: 'flex', gap: 8 }}><button className="btn-secondary" style={{ height: 36, fontSize: 13, padding: '0 14px' }} onClick={() => nav('/queue')}>Games</button><button className="btn-primary" style={{ height: 36, fontSize: 13, padding: '0 14px' }} onClick={() => nav('/scan')}>Rescan</button></div>}
-      />
     </div>
   )
 }

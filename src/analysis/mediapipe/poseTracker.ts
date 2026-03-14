@@ -4,12 +4,26 @@
  */
 import { PoseLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
 
-interface PoseFrame {
+interface LandmarkPos { x: number; y: number }
+
+export interface PoseFrame {
   postureScore: number      // 0–100
   headStability: number     // 0–1
   handMovement: number      // 0–1
   isFidgeting: boolean
   timestamp: number
+  /** Key body landmarks (normalized 0–1) for UI overlay */
+  bodyLandmarks: {
+    nose: LandmarkPos
+    leftShoulder: LandmarkPos
+    rightShoulder: LandmarkPos
+    leftElbow: LandmarkPos
+    rightElbow: LandmarkPos
+    leftWrist: LandmarkPos
+    rightWrist: LandmarkPos
+    leftHip: LandmarkPos
+    rightHip: LandmarkPos
+  } | null
 }
 
 type PoseFrameCallback = (frame: PoseFrame) => void
@@ -113,7 +127,22 @@ function processFrame(video: HTMLVideoElement) {
     }
   }
 
-  const frame: PoseFrame = { postureScore, headStability, handMovement, isFidgeting, timestamp: Date.now() }
+  // Extract key body landmarks for UI overlay
+  let bodyLandmarks: PoseFrame['bodyLandmarks'] = null
+  if (results.landmarks && results.landmarks.length > 0) {
+    const lm = results.landmarks[0]
+    if (lm.length > 24) {
+      const p = (i: number): LandmarkPos => ({ x: lm[i].x, y: lm[i].y })
+      bodyLandmarks = {
+        nose: p(0), leftShoulder: p(11), rightShoulder: p(12),
+        leftElbow: p(13), rightElbow: p(14),
+        leftWrist: p(15), rightWrist: p(16),
+        leftHip: p(23), rightHip: p(24),
+      }
+    }
+  }
+
+  const frame: PoseFrame = { postureScore, headStability, handMovement, isFidgeting, timestamp: Date.now(), bodyLandmarks }
   subscribers.forEach(cb => cb(frame))
   rafId = requestAnimationFrame(() => processFrame(video))
 }

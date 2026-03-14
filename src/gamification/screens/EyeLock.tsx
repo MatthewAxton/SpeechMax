@@ -172,6 +172,8 @@ export default function EyeLock() {
                   headYaw={eye.headYaw}
                   headPitch={eye.headPitch}
                   signals={eye.signals}
+                  leftEyePos={eye.leftEyePos}
+                  rightEyePos={eye.rightEyePos}
                 />
               }
             />

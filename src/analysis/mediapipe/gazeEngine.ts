@@ -47,6 +47,9 @@ export interface GazeReading {
   /** Head rotation estimates in degrees */
   headYaw: number
   headPitch: number
+  /** Normalized eye positions (0–1, relative to video frame) for UI overlays */
+  leftEyePos: { x: number; y: number } | null
+  rightEyePos: { x: number; y: number } | null
   /** Timestamp */
   timestamp: number
 }
@@ -226,6 +229,10 @@ function processFrame(video: HTMLVideoElement) {
     if (smoothedConfidence >= GOOD_THRESHOLD) quality = 'good'
     else if (smoothedConfidence >= WEAK_THRESHOLD) quality = 'weak'
 
+    // Extract eye center positions for UI overlay
+    const leftEyePos = landmarks.length > 468 ? { x: landmarks[468].x, y: landmarks[468].y } : null
+    const rightEyePos = landmarks.length > 473 ? { x: landmarks[473].x, y: landmarks[473].y } : null
+
     reading = {
       rawConfidence,
       confidence: smoothedConfidence,
@@ -233,6 +240,8 @@ function processFrame(video: HTMLVideoElement) {
       signals: { irisCenter, headPose: headPoseResult.confidence, blendshape },
       headYaw: headPoseResult.yaw,
       headPitch: headPoseResult.pitch,
+      leftEyePos,
+      rightEyePos,
       timestamp: Date.now(),
     }
   } else {
@@ -246,6 +255,8 @@ function processFrame(video: HTMLVideoElement) {
       signals: { irisCenter: 0, headPose: 0, blendshape: 0 },
       headYaw: 0,
       headPitch: 0,
+      leftEyePos: null,
+      rightEyePos: null,
       timestamp: Date.now(),
     }
   }

@@ -28,6 +28,9 @@ export interface EyeContactState {
   headPitch: number
   /** Individual signal breakdown for debug/advanced display */
   signals: { irisCenter: number; headPose: number; blendshape: number }
+  /** Eye positions (normalized 0–1) for overlay circles */
+  leftEyePos: { x: number; y: number } | null
+  rightEyePos: { x: number; y: number } | null
   /** Engine state */
   modelReady: boolean
   isTracking: boolean
@@ -43,6 +46,8 @@ export function useEyeContact() {
     headYaw: 0,
     headPitch: 0,
     signals: { irisCenter: 0, headPose: 0, blendshape: 0 },
+    leftEyePos: null,
+    rightEyePos: null,
     modelReady: false,
     isTracking: false,
   })
@@ -120,6 +125,8 @@ export function useEyeContact() {
           headPose: Math.round(reading.signals.headPose * 100),
           blendshape: Math.round(reading.signals.blendshape * 100),
         },
+        leftEyePos: reading.leftEyePos,
+        rightEyePos: reading.rightEyePos,
         modelReady: true,
         isTracking: true,
       })

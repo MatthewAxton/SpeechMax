@@ -5,7 +5,7 @@ import { Zap } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
 import { CameraFeed } from '../components/CameraFeed'
-import { initPoseTracker, startPoseTracking, stopPoseTracking, onPoseFrame } from '../../analysis/mediapipe/poseTracker'
+import { initPoseTracker, startPoseTracking, stopPoseTracking, onPoseFrame, type PoseFrame } from '../../analysis/mediapipe/poseTracker'
 import { computeSimpleGameScore } from '../../analysis/scoring/gameScorer'
 import { useGameStore } from '../../store/gameStore'
 import { useSessionStore } from '../../store/sessionStore'
@@ -25,6 +25,7 @@ export default function StatueMode() {
   const [headStatus, setHeadStatus] = useState<'stable' | 'moving'>('stable')
   const [handStatus, setHandStatus] = useState<'stable' | 'moving'>('stable')
   const [modelLoading, setModelLoading] = useState(true)
+  const [bodyLandmarks, setBodyLandmarks] = useState<PoseFrame['bodyLandmarks']>(null)
   const alertCount = useRef(0)
   const composureRef = useRef(100)
   const finished = useRef(false)
@@ -58,6 +59,7 @@ export default function StatueMode() {
       setComposureScore(score)
       setHeadStatus(frame.headStability > 0.7 ? 'stable' : 'moving')
       setHandStatus(frame.handMovement < 0.2 ? 'stable' : 'moving')
+      if (frame.bodyLandmarks) setBodyLandmarks(frame.bodyLandmarks)
       if (frame.isFidgeting) {
         alertCount.current++
         setMovementAlerts(alertCount.current)
@@ -117,44 +119,61 @@ export default function StatueMode() {
             <CameraFeed
               style={{ height: 'calc(100vh - 260px)', maxHeight: 460 }}
               overlay={
-                <svg style={{ position: 'absolute', inset: 30, pointerEvents: 'none' }} viewBox="0 0 580 300">
-                  <defs>
-                    <filter id="glow">
-                      <feGaussianBlur stdDeviation="4" result="blur" />
-                      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-                    </filter>
-                  </defs>
+                bodyLandmarks ? (() => {
+                  const b = bodyLandmarks
+                  // Convert normalized coords to percentage positions (mirrored for camera)
+                  const px = (p: { x: number; y: number }) => `${(1 - p.x) * 100}%`
+                  const py = (p: { x: number; y: number }) => `${p.y * 100}%`
 
-                  {/* Head */}
-                  <motion.g filter="url(#glow)" animate={headMoving ? { opacity: [0.6, 1, 0.6] } : { opacity: 1 }} transition={headMoving ? { duration: 0.8, repeat: Infinity } : undefined}>
-                    <ellipse cx={290} cy={40} rx={25} ry={28} fill={`${headHeat}20`} stroke={headHeat} strokeWidth={2} />
-                  </motion.g>
+                  const Joint = ({ pos, color, pulse }: { pos: { x: number; y: number }; color: string; pulse: boolean }) => (
+                    <motion.div
+                      animate={pulse ? { boxShadow: [`0 0 8px ${color}80`, `0 0 20px ${color}`, `0 0 8px ${color}80`] } : {}}
+                      transition={pulse ? { duration: 1, repeat: Infinity } : undefined}
+                      style={{
+                        position: 'absolute', left: px(pos), top: py(pos),
+                        width: 14, height: 14, marginLeft: -7, marginTop: -7,
+                        borderRadius: '50%', background: color, border: '2px solid rgba(255,255,255,0.6)',
+                        boxShadow: `0 0 8px ${color}80`,
+                        transition: 'background 0.3s',
+                      }}
+                    />
+                  )
 
-                  {/* Torso */}
-                  <motion.g filter="url(#glow)" animate={torsoMoving ? { opacity: [0.6, 1, 0.6] } : { opacity: 1 }} transition={torsoMoving ? { duration: 0.8, repeat: Infinity } : undefined}>
-                    <rect x={260} y={72} width={60} height={85} rx={10} fill={`${torsoHeat}20`} stroke={torsoHeat} strokeWidth={2} />
-                  </motion.g>
+                  const Bone = ({ from, to, color }: { from: { x: number; y: number }; to: { x: number; y: number }; color: string }) => (
+                    <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                      <line
+                        x1={`${(1 - from.x) * 100}%`} y1={`${from.y * 100}%`}
+                        x2={`${(1 - to.x) * 100}%`} y2={`${to.y * 100}%`}
+                        stroke={color} strokeWidth={3} strokeLinecap="round"
+                        style={{ filter: `drop-shadow(0 0 4px ${color}60)`, transition: 'stroke 0.3s' }}
+                      />
+                    </svg>
+                  )
 
-                  {/* Left arm */}
-                  <motion.g filter="url(#glow)" animate={handMoving ? { opacity: [0.6, 1, 0.6] } : { opacity: 1 }} transition={handMoving ? { duration: 0.8, repeat: Infinity } : undefined}>
-                    <path d="M258,75 L200,130 L180,190" fill="none" stroke={handHeat} strokeWidth={4} strokeLinecap="round" />
-                  </motion.g>
-
-                  {/* Right arm (always green — no right-hand data) */}
-                  <g filter="url(#glow)">
-                    <path d="M322,75 L380,130 L400,190" fill="none" stroke="#58CC02" strokeWidth={4} strokeLinecap="round" />
-                  </g>
-
-                  {/* Left leg */}
-                  <g filter="url(#glow)">
-                    <path d="M272,160 L255,230 L248,280" fill="none" stroke="#58CC02" strokeWidth={4} strokeLinecap="round" />
-                  </g>
-
-                  {/* Right leg */}
-                  <g filter="url(#glow)">
-                    <path d="M308,160 L325,230 L332,280" fill="none" stroke="#58CC02" strokeWidth={4} strokeLinecap="round" />
-                  </g>
-                </svg>
+                  return (
+                    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                      {/* Bones */}
+                      <Bone from={b.leftShoulder} to={b.rightShoulder} color={torsoHeat} />
+                      <Bone from={b.leftShoulder} to={b.leftElbow} color={handHeat} />
+                      <Bone from={b.leftElbow} to={b.leftWrist} color={handHeat} />
+                      <Bone from={b.rightShoulder} to={b.rightElbow} color={handHeat} />
+                      <Bone from={b.rightElbow} to={b.rightWrist} color={handHeat} />
+                      <Bone from={b.leftShoulder} to={b.leftHip} color={torsoHeat} />
+                      <Bone from={b.rightShoulder} to={b.rightHip} color={torsoHeat} />
+                      <Bone from={b.leftHip} to={b.rightHip} color={torsoHeat} />
+                      {/* Joints */}
+                      <Joint pos={b.nose} color={headHeat} pulse={headMoving} />
+                      <Joint pos={b.leftShoulder} color={torsoHeat} pulse={torsoMoving} />
+                      <Joint pos={b.rightShoulder} color={torsoHeat} pulse={torsoMoving} />
+                      <Joint pos={b.leftElbow} color={handHeat} pulse={handMoving} />
+                      <Joint pos={b.rightElbow} color={handHeat} pulse={handMoving} />
+                      <Joint pos={b.leftWrist} color={handHeat} pulse={handMoving} />
+                      <Joint pos={b.rightWrist} color={handHeat} pulse={handMoving} />
+                      <Joint pos={b.leftHip} color={torsoHeat} pulse={false} />
+                      <Joint pos={b.rightHip} color={torsoHeat} pulse={false} />
+                    </div>
+                  )
+                })() : undefined
               }
             />
           </div>
