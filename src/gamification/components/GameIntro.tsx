@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Lightbulb } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -39,8 +39,9 @@ export default function GameIntro({
   onReady,
 }: GameIntroProps) {
   const [particles, setParticles] = useState<Particle[]>([])
-  const [phase, setPhase] = useState<'intro' | 'countdown' | 'go'>('intro')
+  const [phase, setPhase] = useState<'intro' | 'countdown'>('intro')
   const [count, setCount] = useState(3)
+  const goFired = useRef(false)
 
   const handleReady = () => {
     if (phase !== 'intro') return
@@ -60,11 +61,10 @@ export default function GameIntro({
       const t = setTimeout(() => setCount(c => c - 1), 1000)
       return () => clearTimeout(t)
     }
-    if (count === 0) {
+    if (count === 0 && !goFired.current) {
+      goFired.current = true
       playGoTone()
-      setPhase('go')
-      const t = setTimeout(() => onReady(), 800)
-      return () => clearTimeout(t)
+      setTimeout(() => onReady(), 800)
     }
   }, [phase, count, onReady])
 
@@ -78,7 +78,7 @@ export default function GameIntro({
   }
 
   // Countdown overlay
-  if (phase === 'countdown' || phase === 'go') {
+  if (phase === 'countdown') {
     return (
       <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: '#050508', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <AnimatePresence mode="wait">
