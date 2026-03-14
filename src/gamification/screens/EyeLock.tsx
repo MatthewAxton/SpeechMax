@@ -9,42 +9,38 @@ import { CameraFeed } from '../components/CameraFeed'
 import { EyeContactIndicator } from '../components/EyeContactIndicator'
 import { useEyeContact } from '../../analysis/hooks/useEyeContact'
 
+const QUALITY_COLORS = { good: '#58CC02', weak: '#F5A623', lost: '#FF4B4B' }
+
 export default function EyeLock() {
   const nav = useNavigate()
   const [time, setTime] = useState(45)
   const [ready, setReady] = useState(false)
 
-  const {
-    goodEyeContact, eyeContactScore, sessionPercent,
-    currentStreak, longestStreak, modelReady,
-    init, startTracking, stopTracking,
-  } = useEyeContact()
+  const eye = useEyeContact()
 
-  // Init model during countdown
   const onReady = useCallback(async () => {
-    await init()
+    await eye.init()
     setReady(true)
-  }, [init])
+  }, [eye.init])
 
-  // Start tracking once video stream is available
+  // Start tracking once video is playing
   const handleStream = useCallback(() => {
-    if (!modelReady) return
-    // Small delay to let video element mount and start playing
+    if (!eye.modelReady) return
     setTimeout(() => {
       const video = document.querySelector('video') as HTMLVideoElement | null
-      if (video) startTracking(video)
+      if (video) eye.startTracking(video)
     }, 600)
-  }, [modelReady, startTracking])
+  }, [eye.modelReady, eye.startTracking])
 
-  // Retry starting when model finishes loading after stream
+  // Retry when model loads after stream
   useEffect(() => {
-    if (!ready || !modelReady) return
+    if (!ready || !eye.modelReady) return
     const t = setTimeout(() => {
       const video = document.querySelector('video') as HTMLVideoElement | null
-      if (video) startTracking(video)
+      if (video) eye.startTracking(video)
     }, 600)
     return () => clearTimeout(t)
-  }, [ready, modelReady, startTracking])
+  }, [ready, eye.modelReady, eye.startTracking])
 
   // Timer
   useEffect(() => {
@@ -52,16 +48,18 @@ export default function EyeLock() {
     const t = setInterval(() => setTime(p => {
       if (p <= 1) {
         clearInterval(t)
-        stopTracking()
+        eye.stopTracking()
         nav('/score/eyelock')
         return 0
       }
       return p - 1
     }), 1000)
     return () => clearInterval(t)
-  }, [nav, ready, stopTracking])
+  }, [nav, ready, eye.stopTracking])
 
-  const glowColor = goodEyeContact ? 'rgba(88,204,2,0.35)' : 'rgba(255,75,75,0.25)'
+  const color = QUALITY_COLORS[eye.quality]
+  const mins = Math.floor(time / 60)
+  const secs = time % 60
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
@@ -73,20 +71,20 @@ export default function EyeLock() {
         center={
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>
-              0:{time.toString().padStart(2, '0')}
+              {mins}:{secs.toString().padStart(2, '0')}
             </span>
             <span style={{
-              background: goodEyeContact ? 'rgba(88,204,2,0.3)' : 'rgba(255,75,75,0.3)',
-              padding: '4px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-              transition: 'background 0.3s',
+              background: `${color}40`, padding: '4px 12px', borderRadius: 10,
+              fontSize: 13, fontWeight: 700, color: 'white',
+              transition: 'background 0.4s',
             }}>
-              {sessionPercent}%
+              {eye.sessionPercent}%
             </span>
           </div>
         }
         right={
           <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}>
-            <Zap size={14} /> Best: {longestStreak}s
+            <Zap size={14} /> Best: {eye.longestStreak}s
           </span>
         }
       />
@@ -94,23 +92,26 @@ export default function EyeLock() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 40px' }}>
 
-          {/* Camera with eye contact overlay */}
+          {/* Camera with eye contact measurement overlay */}
           <div style={{
             width: '100%', maxWidth: 640, marginBottom: 12,
-            boxShadow: `0 0 0 4px ${glowColor}, 0 4px 24px rgba(194,143,231,0.08)`,
+            boxShadow: `0 0 0 3px ${color}50, 0 4px 24px rgba(0,0,0,0.15)`,
             borderRadius: 20,
-            transition: 'box-shadow 0.3s ease',
+            transition: 'box-shadow 0.5s ease',
           }}>
             <CameraFeed
-              style={{ height: 340 }}
+              style={{ height: 360 }}
               withAudio={true}
               onStream={handleStream}
               overlay={
                 <EyeContactIndicator
-                  goodEyeContact={goodEyeContact}
-                  eyeContactScore={eyeContactScore}
-                  sessionPercent={sessionPercent}
-                  currentStreak={currentStreak}
+                  quality={eye.quality}
+                  confidence={eye.confidence}
+                  sessionPercent={eye.sessionPercent}
+                  currentStreak={eye.currentStreak}
+                  headYaw={eye.headYaw}
+                  headPitch={eye.headPitch}
+                  signals={eye.signals}
                 />
               }
             />
@@ -129,26 +130,28 @@ export default function EyeLock() {
       <BottomBanner
         left={
           <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>
-            {goodEyeContact ? 'Great eye contact! Stay locked in.' : 'Look at the target above ↑'}
+            {eye.quality === 'good' ? 'Strong eye contact — keep it up!'
+              : eye.quality === 'weak' ? 'Eye contact drifting — refocus.'
+              : 'Eye contact lost.'}
           </div>
         }
         center={
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <motion.div
-              key={sessionPercent}
-              initial={{ scale: 1.2, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-              style={{ fontSize: 22, fontWeight: 800, color: goodEyeContact ? '#58CC02' : '#FF4B4B' }}
+              key={eye.confidence}
+              initial={{ scale: 1.1 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              style={{ fontSize: 22, fontWeight: 800, color }}
             >
-              {sessionPercent}% Locked
+              {eye.sessionPercent}% Engaged
             </motion.div>
             <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Gaze Score
+              Session Score
             </div>
           </div>
         }
-        right={<><Lock size={16} /> {goodEyeContact ? 'Locked' : 'Look up!'}</>}
+        right={<><Lock size={16} /> {eye.quality === 'good' ? 'Locked' : eye.quality === 'weak' ? 'Drifting' : 'Lost'}</>}
       />
     </div>
   )
