@@ -155,7 +155,7 @@ export default function Progress() {
       <BottomBanner
         left={<MikeWithBubble text="Keep practicing! Every session counts." size={36} delay={0.5} />}
         center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 18, fontWeight: 800 }}>Progress</div></div>}
-        right={<button className="btn-primary" style={{ height: 36, fontSize: 13, padding: '0 16px' }} onClick={() => nav('/scan')}>Rescan</button>}
+        right={<div style={{ display: 'flex', gap: 8 }}><button className="btn-secondary" style={{ height: 36, fontSize: 13, padding: '0 14px' }} onClick={() => nav('/queue')}>Games</button><button className="btn-primary" style={{ height: 36, fontSize: 13, padding: '0 14px' }} onClick={() => nav('/scan')}>Rescan</button></div>}
       />
     </div>
   )

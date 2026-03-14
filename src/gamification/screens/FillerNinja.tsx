@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Zap, X } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
-import { GraceCountdown } from '../components/GraceCountdown'
 import { startTranscription, stopTranscription, onTranscript } from '../../analysis/speech/transcriber'
 import { startFillerDetection, stopFillerDetection, onFillerDetected, getFillerCount } from '../../analysis/speech/fillerDetector'
 import { useMicrophone } from '../../analysis/hooks/useMicrophone'
@@ -34,12 +33,18 @@ export default function FillerNinja() {
   const lastFillerTime = useRef(Date.now())
   const { requestMic, stopMic } = useMicrophone()
 
-  const onReady = useCallback(async () => {
-    // Request mic when game starts
-    await requestMic()
-    startTranscription()
-    startFillerDetection()
-    setReady(true)
+  // Auto-start on mount (Countdown screen already handled the pre-game)
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      await requestMic()
+      if (!cancelled) {
+        startTranscription()
+        startFillerDetection()
+        setReady(true)
+      }
+    })()
+    return () => { cancelled = true }
   }, [requestMic])
 
   // Listen for fillers
@@ -98,8 +103,6 @@ export default function FillerNinja() {
   const ninjaBarColor = streak > 20 ? '#58CC02' : streak > 10 ? '#C28FE7' : '#6B21A8'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Interview Question" />}
-
       {/* Floating filler word bubbles (ambient, decorative) */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
         {FILLER_TARGETS.map((word, i) => (

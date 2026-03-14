@@ -12,7 +12,7 @@ interface WordEntry {
   timestamp: number
 }
 
-const ROLLING_WINDOW_MS = 5000
+const ROLLING_WINDOW_MS = 3000
 const subscribers = new Set<WpmCallback>()
 let startTime = 0
 let totalWords = 0
@@ -48,8 +48,8 @@ export function getSessionWpm(): number {
 export function getRollingWpm(): number {
   pruneBuffer()
   const wordsInWindow = buffer.reduce((sum, e) => sum + e.wordCount, 0)
-  // words in 5 seconds × 12 = words per minute
-  return Math.round(wordsInWindow * 12)
+  // words in 3 seconds × 20 = words per minute
+  return Math.round(wordsInWindow * 20)
 }
 
 function emitReading() {
@@ -71,7 +71,7 @@ export function startWpmTracking(): void {
   buffer.length = 0
   wpmSamples.length = 0
   unsubTranscript = onTranscript(processTranscript)
-  intervalId = setInterval(emitReading, 1000)
+  intervalId = setInterval(emitReading, 500)
 }
 
 export function stopWpmTracking(): void {

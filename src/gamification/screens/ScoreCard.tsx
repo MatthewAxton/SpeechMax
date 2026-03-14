@@ -12,20 +12,23 @@ const GAME_KEY_MAP: Record<string, GameType> = {
   filler: 'filler-ninja', eyelock: 'eye-lock', pace: 'pace-racer', pitch: 'pitch-surfer', statue: 'statue-mode',
 }
 
+const GAME_PATH_MAP: Record<GameType, string> = {
+  'filler-ninja': '/filler-ninja', 'eye-lock': '/eye-lock', 'pace-racer': '/pace-racer', 'pitch-surfer': '/pitch-surfer', 'statue-mode': '/statue-mode',
+}
+
 interface GameConfig {
   title: string
   axis: string
   icon: typeof AlertCircle
-  next: string
   replay: string
 }
 
 const gameConfigs: Record<string, GameConfig> = {
-  filler: { title: 'Filler Ninja', axis: 'Clarity', icon: AlertCircle, next: '/countdown?next=/eye-lock', replay: '/countdown?next=/filler-ninja' },
-  eyelock: { title: 'Eye Lock', axis: 'Confidence', icon: Eye, next: '/countdown?next=/pace-racer', replay: '/countdown?next=/eye-lock' },
-  pitch: { title: 'Pitch Surfer', axis: 'Expression', icon: Waves, next: '/countdown?next=/statue-mode', replay: '/countdown?next=/pitch-surfer' },
-  pace: { title: 'Pace Racer', axis: 'Pacing', icon: Activity, next: '/countdown?next=/pitch-surfer', replay: '/countdown?next=/pace-racer' },
-  statue: { title: 'Statue Mode', axis: 'Composure', icon: Shield, next: '/queue', replay: '/countdown?next=/statue-mode' },
+  filler: { title: 'Filler Ninja', axis: 'Clarity', icon: AlertCircle, replay: '/countdown?next=/filler-ninja' },
+  eyelock: { title: 'Eye Lock', axis: 'Confidence', icon: Eye, replay: '/countdown?next=/eye-lock' },
+  pitch: { title: 'Pitch Surfer', axis: 'Expression', icon: Waves, replay: '/countdown?next=/pitch-surfer' },
+  pace: { title: 'Pace Racer', axis: 'Pacing', icon: Activity, replay: '/countdown?next=/pace-racer' },
+  statue: { title: 'Statue Mode', axis: 'Composure', icon: Shield, replay: '/countdown?next=/statue-mode' },
 }
 
 function getMessage(score: number, axis: string): string {
@@ -81,6 +84,7 @@ export default function ScoreCard() {
 
   if (!hasScans) return null
   const gameHistory = useGameStore((s) => s.gameHistory)
+  const getRecommendedGameOrder = useGameStore((s) => s.getRecommendedGameOrder)
 
   // Get results for this game type
   const gameResults = gameHistory.filter((r) => r.gameType === gameType)
@@ -93,6 +97,16 @@ export default function ScoreCard() {
   const metrics = lastResult?.metrics ?? {}
   const stats = getStats(game || 'filler', metrics)
   const message = getMessage(currentScore, config.axis)
+
+  // Compute next game from recommended order
+  const recommendedOrder = getRecommendedGameOrder()
+  const currentIdx = recommendedOrder.indexOf(gameType)
+  const nextGameType = currentIdx >= 0 && currentIdx < recommendedOrder.length - 1
+    ? recommendedOrder[currentIdx + 1]
+    : null
+  const nextPath = nextGameType
+    ? `/countdown?next=${GAME_PATH_MAP[nextGameType]}`
+    : '/progress'
 
   const [showConfetti, setShowConfetti] = useState(true)
 
@@ -160,10 +174,10 @@ export default function ScoreCard() {
             ))}
           </div>
           <div style={{ display: 'flex', gap: 12, width: '100%', maxWidth: 480 }}>
-            <button className="btn-primary" style={{ flex: 1 }} onClick={() => nav(config.next)}>Next Game</button>
+            <button className="btn-primary" style={{ flex: 1 }} onClick={() => nav(nextPath)}>{nextGameType ? 'Next Game' : 'View Progress'}</button>
             <button className="btn-secondary" style={{ flex: 1 }} onClick={() => nav(config.replay)}>Play Again</button>
           </div>
-          <div style={{ marginTop: 12 }}><span onClick={() => nav('/queue')} style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to dashboard</span></div>
+          <div style={{ marginTop: 12 }}><button className="btn-secondary" style={{ height: 36, fontSize: 13, padding: '0 20px' }} onClick={() => nav('/queue')}>Back to Dashboard</button></div>
         </div>
       </div>
       <BottomBanner left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>{message}</div>} center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 22, fontWeight: 800 }}>{prevResult ? `${improvement > 0 ? '+' : ''}${improvement}` : currentScore}</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>{config.axis} {prevResult ? 'Change' : 'Score'}</div></div>} right={<><ArrowRight size={18} /> Next</>} />

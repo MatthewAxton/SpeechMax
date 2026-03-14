@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { Zap } from 'lucide-react'
 import { TopBanner, BottomBanner } from '../components/Banner'
 import { AudioWave } from '../components/AudioWave'
-import { GraceCountdown } from '../components/GraceCountdown'
 import { startTranscription, stopTranscription } from '../../analysis/speech/transcriber'
 import { startWpmTracking, stopWpmTracking, onWpmReading } from '../../analysis/speech/wpmTracker'
 import { useMicrophone } from '../../analysis/hooks/useMicrophone'
@@ -30,11 +29,18 @@ export default function PaceRacer() {
   const timeInZoneRef = useRef(0)
   const { requestMic, stopMic } = useMicrophone()
 
-  const onReady = useCallback(async () => {
-    await requestMic()
-    startTranscription()
-    startWpmTracking()
-    setReady(true)
+  // Auto-start on mount
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      await requestMic()
+      if (!cancelled) {
+        startTranscription()
+        startWpmTracking()
+        setReady(true)
+      }
+    })()
+    return () => { cancelled = true }
   }, [requestMic])
 
   // Listen for real WPM readings
@@ -93,7 +99,6 @@ export default function PaceRacer() {
   const wpmLabelColor = inZone ? '#58CC02' : wpm > 0 ? '#FF4B4B' : 'var(--muted)'
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {!ready && <GraceCountdown onReady={onReady} prompt={prompt} promptLabel="Freestyle" />}
       <TopBanner backTo="/queue" title="Pace Racer" center={<span style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 16px', borderRadius: 12, fontSize: 15, fontWeight: 800 }}>0:{time.toString().padStart(2, '0')}</span>} right={<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700 }}><Zap size={14} /> {timeInZone}s</span><span style={{ background: `${difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02'}30`, color: difficulty === 'hard' ? '#FF4B4B' : difficulty === 'medium' ? '#FCD34D' : '#58CC02', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, textTransform: 'uppercase' }}>{difficulty}</span></div>} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <div style={{ width: '100%', maxWidth: 960, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 40px' }}>
