@@ -38,6 +38,7 @@ let active = false
 let cumulativeWordCount = 0
 let lastError: string | null = null
 let restartScheduled = false
+let permanentFailure = false
 const subscribers = new Set<TranscriptCallback>()
 
 // Simulation fallback state
@@ -120,9 +121,15 @@ function createRecognition(): SpeechRecognition {
     if (err === 'no-speech' || err === 'aborted') return
     console.warn('[SpeechMAX] SpeechRecognition error:', err)
     lastError = err
-    // Don't restart on permanent errors
-    if (err === 'not-allowed' || err === 'service-not-allowed') return
-    // Schedule restart with slightly longer delay for real errors
+    // Permanent errors — stop retrying real recognition, fall back to simulation
+    if (err === 'not-allowed' || err === 'service-not-allowed' || err === 'network') {
+      permanentFailure = true
+      try { rec.stop() } catch { /* ignore */ }
+      recognition = null
+      if (!simMode) startSimulation()
+      return
+    }
+    // Schedule restart with slightly longer delay for recoverable errors
     if (active && !restartScheduled) {
       restartScheduled = true
       try { rec.stop() } catch { /* ignore */ }
@@ -131,7 +138,7 @@ function createRecognition(): SpeechRecognition {
 
   rec.onend = () => {
     // Single restart point — handles normal end and post-error end
-    if (active) {
+    if (active && !permanentFailure) {
       const delay = restartScheduled ? 150 : 30
       restartScheduled = false
       setTimeout(() => { if (active) startInternal() }, delay)
@@ -159,6 +166,7 @@ function startInternal() {
 export function startTranscription(): void {
   if (active) return
   active = true
+  permanentFailure = false
   cumulativeWordCount = 0
   startInternal()
   resultReceived = false
