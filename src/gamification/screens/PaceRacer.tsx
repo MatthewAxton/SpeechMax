@@ -53,9 +53,6 @@ export default function PaceRacer() {
     ;(async () => {
       await requestMic()
       if (!cancelled) {
-        // Ensure clean state before starting
-        stopTranscription()
-        stopWpmTracking()
         startTranscription()
         startWpmTracking()
         setReady(true)

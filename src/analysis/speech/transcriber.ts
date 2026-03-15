@@ -173,13 +173,19 @@ function startInternal() {
 }
 
 export function startTranscription(): void {
-  if (active) return
+  // Always force a clean restart — prevents stale state from previous screens
+  if (active) {
+    stopTranscription()
+  }
   active = true
   permanentFailure = false
   cumulativeWordCount = 0
+  lastError = null
+  restartScheduled = false
   startInternal()
   resultReceived = false
   simMode = false
+  simIndex = 0
   fallbackTimer = setTimeout(() => {
     if (active && !resultReceived && !simMode) startSimulation()
   }, 5000)

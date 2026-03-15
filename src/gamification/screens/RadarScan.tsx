@@ -116,33 +116,37 @@ export default function RadarScan() {
     const unsubAudio = onAudioFrame((frame) => {
       if (frame.pitch > 0) pitchReadings.current.push(frame.pitch)
     })
-    // Normalize word for fuzzy matching
-    const norm = (w: string) => w.toLowerCase().replace(/[^a-z0-9']/g, '')
+    // Reading mode: sequential word matching
+    const norm = (w: string) => w.toLowerCase().replace(/[^a-z0-9]/g, '')
     const passageWords = prompt.split(/\s+/).map(w => norm(w))
+    // Small lookahead: how far ahead in the passage to search for the next spoken word
+    // This handles skipped/misheard words gracefully
+    const LOOKAHEAD = 4
 
     const unsubTranscript = onTranscript((event) => {
       if (event.isFinal) wordCountRef.current = event.wordCount
       setLiveTranscript(event.text)
 
-      // Reading mode: match spoken words against passage to find position
-      if (isReading) {
-        const spoken = event.text.split(/\s+/).map(w => norm(w)).filter(Boolean)
-        // Find the furthest matching word in the passage
-        let bestMatch = highWaterMark.current
-        const searchStart = Math.max(0, highWaterMark.current)
+      // Reading mode: only advance on final transcripts to avoid jumpiness
+      if (isReading && event.isFinal) {
+        const spoken = event.text.split(/\s+/).map(w => norm(w)).filter(w => w.length > 0)
+        let cursor = highWaterMark.current + 1 // start searching from next unmatched word
+
         for (const word of spoken) {
-          if (!word) continue
-          for (let j = searchStart; j < passageWords.length; j++) {
-            if (passageWords[j] === word || passageWords[j].startsWith(word) || word.startsWith(passageWords[j])) {
-              bestMatch = Math.max(bestMatch, j)
+          if (word.length < 2) continue // skip single letters ("a", "I") — too ambiguous
+          // Search a small window ahead for this word
+          const searchEnd = Math.min(cursor + LOOKAHEAD, passageWords.length)
+          for (let j = cursor; j < searchEnd; j++) {
+            if (passageWords[j] === word) {
+              // Exact match — advance cursor past this word
+              highWaterMark.current = j
+              cursor = j + 1
               break
             }
           }
         }
-        if (bestMatch > highWaterMark.current) {
-          highWaterMark.current = bestMatch
-          setHighlightIndex(bestMatch)
-        }
+
+        setHighlightIndex(highWaterMark.current)
       }
     })
     return () => {
