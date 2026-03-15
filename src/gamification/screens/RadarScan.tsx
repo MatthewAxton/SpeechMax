@@ -41,6 +41,8 @@ export default function RadarScan() {
   const micStarted = useRef(false)
   const scanFinished = useRef(false)
   const finishRef = useRef<() => void>(() => {})
+  const [spokenWordCount, setSpokenWordCount] = useState(0)
+  const spokenWordsRef = useRef<string[]>([])
 
   // Sensor accumulators
   const gazeFrames = useRef({ good: 0, total: 0 })
@@ -115,7 +117,17 @@ export default function RadarScan() {
       if (frame.pitch > 0) pitchReadings.current.push(frame.pitch)
     })
     const unsubTranscript = onTranscript((event) => {
-      if (event.isFinal) wordCountRef.current = event.wordCount
+      if (event.isFinal) {
+        wordCountRef.current = event.wordCount
+        // For reading mode: accumulate all spoken words
+        const words = event.text.split(/\s+/).filter(Boolean)
+        spokenWordsRef.current = [...spokenWordsRef.current, ...words]
+        setSpokenWordCount(spokenWordsRef.current.length)
+      } else {
+        // Interim: show current position (accumulated + interim words)
+        const interimWords = event.text.split(/\s+/).filter(Boolean)
+        setSpokenWordCount(spokenWordsRef.current.length + interimWords.length)
+      }
       setLiveTranscript(event.text)
     })
     return () => {
@@ -311,40 +323,69 @@ export default function RadarScan() {
 
       {/* Bottom-center: Prompt + Live Transcript */}
       <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', zIndex: 20, width: '90%', maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {/* Live transcript */}
-        <AnimatePresence>
-          {liveTranscript && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              style={{
-                ...glassCard,
-                textAlign: 'center',
-                padding: '12px 20px',
-                background: 'rgba(194,143,231,0.08)',
-                border: '1px solid rgba(194,143,231,0.2)',
-              }}
-            >
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(194,143,231,0.6)', marginBottom: 6 }}>
-                Live Transcription
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.6, color: 'rgba(255,255,255,0.85)', maxHeight: 80, overflow: 'hidden' }}>
-                "{liveTranscript}"
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isReading ? (
+          /* Reading mode: passage with word-by-word green highlighting */
+          <div style={{ ...glassCard, textAlign: 'left', padding: '16px 24px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
+              Read This Aloud
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 2, color: 'rgba(255,255,255,0.3)' }}>
+              {prompt.split(/\s+/).map((word, i) => {
+                const isSpoken = i < spokenWordCount
+                const isCurrent = i === spokenWordCount - 1 || i === spokenWordCount
+                return (
+                  <span
+                    key={i}
+                    style={{
+                      color: isSpoken ? '#58CC02' : 'rgba(255,255,255,0.35)',
+                      fontWeight: isSpoken ? 700 : 600,
+                      transition: 'color 0.2s',
+                      textShadow: isCurrent && isSpoken ? '0 0 8px rgba(88,204,2,0.4)' : 'none',
+                    }}
+                  >
+                    {word}{' '}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Non-reading: live transcript + prompt */
+          <>
+            <AnimatePresence>
+              {liveTranscript && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  style={{
+                    ...glassCard,
+                    textAlign: 'center',
+                    padding: '12px 20px',
+                    background: 'rgba(194,143,231,0.08)',
+                    border: '1px solid rgba(194,143,231,0.2)',
+                  }}
+                >
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(194,143,231,0.6)', marginBottom: 6 }}>
+                    Live Transcription
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.6, color: 'rgba(255,255,255,0.85)', maxHeight: 80, overflow: 'hidden' }}>
+                    "{liveTranscript}"
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-        {/* Prompt */}
-        <div style={{ ...glassCard, textAlign: 'center', padding: '14px 24px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
-            {isReading ? 'Read This Aloud' : 'Speak About This Topic'}
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.8, color: 'rgba(255,255,255,0.9)' }}>
-            {prompt}
-          </div>
-        </div>
+            <div style={{ ...glassCard, textAlign: 'center', padding: '14px 24px' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(255,255,255,0.35)', marginBottom: 6 }}>
+                Speak About This Topic
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.8, color: 'rgba(255,255,255,0.9)' }}>
+                {prompt}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Bottom-right: Finish Early */}
