@@ -78,7 +78,7 @@ export default function GameQueue() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          style={{ width: 360, flexShrink: 0, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 24, padding: '24px 24px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, overflow: 'hidden' }}
+          style={{ width: 360, flexShrink: 0, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 24, padding: '28px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, overflow: 'hidden' }}
         >
           {/* Score + Grade row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -120,7 +120,7 @@ export default function GameQueue() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 + i * 0.08 }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}
                 >
                   <axis.icon size={13} color="var(--purple)" style={{ flexShrink: 0, opacity: 0.7 }} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)', width: 72, flexShrink: 0 }}>{axis.label}</span>
@@ -142,7 +142,7 @@ export default function GameQueue() {
           <button
             className="btn-secondary"
             onClick={() => nav('/scan')}
-            style={{ marginTop: 12, width: '100%', height: 36, fontSize: 13 }}
+            style={{ width: '100%', height: 36, fontSize: 13 }}
           >
             Rescan
           </button>

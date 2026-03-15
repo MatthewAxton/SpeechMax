@@ -326,6 +326,18 @@ All support pages (History, Library, Insights, Settings) updated with:
 - Larger padding, font sizes, and card spacing — no longer cramped
 - Practice setup page also has mascot explaining "Practice mode won't affect your scores"
 
+### 12.12 — Dashboard radar panel redesign [DONE]
+
+Redesigned the left panel on GameQueue dashboard:
+- Score + letter grade badge (A+/A/B+/B/C+/C/D) displayed side by side at top
+- Radar chart with subtle purple glow behind it, labels without scores (cleaner)
+- Per-axis animated progress bars with icons, names, color-coded fills (green/yellow/red), and numeric scores
+- All elements vertically centered with generous spacing (gap: 20px)
+- Rescan button integrated at bottom
+- Removed duplicate goal selection screen from homepage (handled in Onboarding)
+
+**Files:** `GameQueue.tsx`, `App.tsx`
+
 ---
 
 ## Key Architecture
