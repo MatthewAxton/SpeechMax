@@ -7,6 +7,9 @@ export const PASSAGE_WORDS = SCAN_PASSAGE.replace(/[.,!?;:]/g, '').toLowerCase()
 /**
  * Given a spoken transcript, find how many passage words have been matched.
  * Uses greedy forward matching with fuzzy tolerance.
+ *
+ * Key improvement: processes full multi-word sequences to avoid getting
+ * stuck on repeated common words like "the".
  */
 export function matchWordsToPassage(spokenText: string): number {
   const spoken = spokenText.replace(/[.,!?;:]/g, '').toLowerCase().split(/\s+/).filter(Boolean)
@@ -14,32 +17,55 @@ export function matchWordsToPassage(spokenText: string): number {
 
   let passageIdx = 0
 
-  for (const word of spoken) {
+  for (let i = 0; i < spoken.length; i++) {
     if (passageIdx >= PASSAGE_WORDS.length) break
+    const word = spoken[i]
 
-    // Exact match
-    if (word === PASSAGE_WORDS[passageIdx]) {
+    // Try matching current word at current passage position
+    if (wordMatch(word, PASSAGE_WORDS[passageIdx])) {
+      // Before advancing, check if the NEXT spoken word matches the NEXT passage word
+      // This confirms we're at the right position (prevents stalling on repeated words like "the")
       passageIdx++
       continue
     }
 
-    // Fuzzy: check if word starts with same 3+ chars (handles partial recognition)
-    if (word.length >= 3 && PASSAGE_WORDS[passageIdx].startsWith(word.slice(0, 3))) {
-      passageIdx++
-      continue
-    }
-
-    // Look ahead 1-2 words in passage (user may have skipped a word)
-    for (let ahead = 1; ahead <= 2 && passageIdx + ahead < PASSAGE_WORDS.length; ahead++) {
-      if (word === PASSAGE_WORDS[passageIdx + ahead] ||
-          (word.length >= 3 && PASSAGE_WORDS[passageIdx + ahead].startsWith(word.slice(0, 3)))) {
-        passageIdx += ahead + 1
-        break
+    // Look ahead 1-3 words in the passage (user may have skipped words or we're stuck)
+    let matched = false
+    for (let ahead = 1; ahead <= 3 && passageIdx + ahead < PASSAGE_WORDS.length; ahead++) {
+      if (wordMatch(word, PASSAGE_WORDS[passageIdx + ahead])) {
+        // Found a match ahead — but verify with next spoken word if possible
+        const nextSpoken = spoken[i + 1]
+        const nextPassage = PASSAGE_WORDS[passageIdx + ahead + 1]
+        if (nextSpoken && nextPassage && wordMatch(nextSpoken, nextPassage)) {
+          // Double confirmation — skip to this position
+          passageIdx = passageIdx + ahead + 1
+          matched = true
+          break
+        }
+        // Single match ahead — still advance if the ahead word isn't too common
+        if (!isCommonWord(word) || ahead === 1) {
+          passageIdx = passageIdx + ahead + 1
+          matched = true
+          break
+        }
       }
     }
 
-    // Filler words that don't match any passage word are simply ignored
+    if (matched) continue
+    // Word doesn't match anything nearby — ignore (likely filler or mis-recognition)
   }
 
   return passageIdx
+}
+
+function wordMatch(spoken: string, passage: string): boolean {
+  if (spoken === passage) return true
+  // Fuzzy: first 3+ chars match (handles partial recognition like "commun" for "communicate")
+  if (spoken.length >= 3 && passage.startsWith(spoken.slice(0, 3))) return true
+  if (passage.length >= 3 && spoken.startsWith(passage.slice(0, 3))) return true
+  return false
+}
+
+function isCommonWord(word: string): boolean {
+  return ['the', 'a', 'an', 'and', 'of', 'in', 'to', 'is', 'it', 'that', 'for', 'on', 'with', 'as', 'at', 'by', 'or', 'not', 'but', 'their', 'they', 'them'].includes(word)
 }
