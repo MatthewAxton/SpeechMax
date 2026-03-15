@@ -5,7 +5,7 @@
 SpeechMAX uses your webcam, microphone, and cutting-edge browser APIs to analyze your public speaking in real-time across five dimensions — then trains you through gamified mini-games.
 
 <p align="center">
-  <img src="public/speechmaxing.gif" alt="SpeechMAX Demo" width="400" />
+  <img src="public/IDLE.gif" alt="Mike — SpeechMAX Mascot" width="200" />
 </p>
 
 ---
