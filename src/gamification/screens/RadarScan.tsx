@@ -41,8 +41,8 @@ export default function RadarScan() {
   const micStarted = useRef(false)
   const scanFinished = useRef(false)
   const finishRef = useRef<() => void>(() => {})
-  const [spokenWordCount, setSpokenWordCount] = useState(0)
-  const spokenWordsRef = useRef<string[]>([])
+  const [highlightIndex, setHighlightIndex] = useState(-1)
+  const highWaterMark = useRef(-1)
 
   // Sensor accumulators
   const gazeFrames = useRef({ good: 0, total: 0 })
@@ -61,7 +61,7 @@ export default function RadarScan() {
   const userGoal = useSessionStore((s) => s.userGoal)
   const getUnusedPrompt = useSessionStore((s) => s.getUnusedPrompt)
   const [prompt] = useState(() => {
-    const category = getPromptCategory(userGoal, 'casual')
+    const category = getPromptCategory(userGoal, 'casual', true)
     return getUnusedPrompt(category)
   })
   const isReading = userGoal === 'reading'
@@ -116,19 +116,34 @@ export default function RadarScan() {
     const unsubAudio = onAudioFrame((frame) => {
       if (frame.pitch > 0) pitchReadings.current.push(frame.pitch)
     })
+    // Normalize word for fuzzy matching
+    const norm = (w: string) => w.toLowerCase().replace(/[^a-z0-9']/g, '')
+    const passageWords = prompt.split(/\s+/).map(w => norm(w))
+
     const unsubTranscript = onTranscript((event) => {
-      if (event.isFinal) {
-        wordCountRef.current = event.wordCount
-        // For reading mode: accumulate all spoken words
-        const words = event.text.split(/\s+/).filter(Boolean)
-        spokenWordsRef.current = [...spokenWordsRef.current, ...words]
-        setSpokenWordCount(spokenWordsRef.current.length)
-      } else {
-        // Interim: show current position (accumulated + interim words)
-        const interimWords = event.text.split(/\s+/).filter(Boolean)
-        setSpokenWordCount(spokenWordsRef.current.length + interimWords.length)
-      }
+      if (event.isFinal) wordCountRef.current = event.wordCount
       setLiveTranscript(event.text)
+
+      // Reading mode: match spoken words against passage to find position
+      if (isReading) {
+        const spoken = event.text.split(/\s+/).map(w => norm(w)).filter(Boolean)
+        // Find the furthest matching word in the passage
+        let bestMatch = highWaterMark.current
+        const searchStart = Math.max(0, highWaterMark.current)
+        for (const word of spoken) {
+          if (!word) continue
+          for (let j = searchStart; j < passageWords.length; j++) {
+            if (passageWords[j] === word || passageWords[j].startsWith(word) || word.startsWith(passageWords[j])) {
+              bestMatch = Math.max(bestMatch, j)
+              break
+            }
+          }
+        }
+        if (bestMatch > highWaterMark.current) {
+          highWaterMark.current = bestMatch
+          setHighlightIndex(bestMatch)
+        }
+      }
     })
     return () => {
       unsubGaze()
@@ -329,18 +344,18 @@ export default function RadarScan() {
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: 'rgba(255,255,255,0.35)', marginBottom: 10 }}>
               Read This Aloud
             </div>
-            <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 2, color: 'rgba(255,255,255,0.3)' }}>
+            <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 2 }}>
               {prompt.split(/\s+/).map((word, i) => {
-                const isSpoken = i < spokenWordCount
-                const isCurrent = i === spokenWordCount - 1 || i === spokenWordCount
+                const isSpoken = i <= highlightIndex
+                const isCurrent = i === highlightIndex
                 return (
                   <span
                     key={i}
                     style={{
-                      color: isSpoken ? '#58CC02' : 'rgba(255,255,255,0.35)',
-                      fontWeight: isSpoken ? 700 : 600,
-                      transition: 'color 0.2s',
-                      textShadow: isCurrent && isSpoken ? '0 0 8px rgba(88,204,2,0.4)' : 'none',
+                      color: isSpoken ? '#58CC02' : 'rgba(255,255,255,0.3)',
+                      fontWeight: isSpoken ? 700 : 500,
+                      transition: 'color 0.3s ease',
+                      textShadow: isCurrent ? '0 0 12px rgba(88,204,2,0.5)' : 'none',
                     }}
                   >
                     {word}{' '}

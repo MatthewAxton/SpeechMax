@@ -55,6 +55,8 @@ export default function FillerNinja() {
     ;(async () => {
       await requestMic()
       if (!cancelled) {
+        stopTranscription()
+        stopFillerDetection()
         startTranscription()
         startFillerDetection()
         setReady(true)
