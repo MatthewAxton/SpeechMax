@@ -169,7 +169,7 @@ export default function FillerNinja() {
   )
   function highlightFillers(text: string): React.ReactNode {
     if (!text) return null
-    const fillerWords = ['um', 'uh', 'uhh', 'umm', 'er', 'ah', 'hmm', 'like', 'you know', 'basically', 'right', 'so', 'actually', 'literally', 'i mean', 'kind of', 'sort of', 'well', 'okay so', 'honestly', 'yeah', 'just', 'i guess']
+    const fillerWords = ['um', 'uh', 'uhh', 'umm', 'er', 'ah', 'hmm', 'like', 'you know', 'basically', 'right', 'actually', 'i mean']
     const pattern = fillerWords.map(w => w.replace(/\s+/g, '\\s+')).join('|')
     const regex = new RegExp(`(\\b(?:${pattern})\\b)`, 'gi')
     const parts = text.split(regex)
