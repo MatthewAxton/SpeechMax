@@ -47,6 +47,8 @@ export default function FillerNinja() {
   const [shaking, setShaking] = useState(false)
   const lastFillerTime = useRef(Date.now())
   const lastSpeechTime = useRef(Date.now())
+  const finished = useRef(false)
+  const finishRef = useRef<() => void>(() => {})
   const { requestMic, stopMic } = useMicrophone()
 
   useEffect(() => {
@@ -89,6 +91,26 @@ export default function FillerNinja() {
     return unsub
   }, [ready])
 
+  const finishGame = useCallback(() => {
+    if (finished.current) return
+    finished.current = true
+    stopTranscription()
+    stopFillerDetection()
+    stopMic()
+    const elapsed = gameDuration - time
+    const metrics = { fillerCount: getFillerCount(), durationSeconds: Math.max(1, elapsed), longestStreakSeconds: Math.floor((Date.now() - lastFillerTime.current) / 1000) }
+    const score = computeSimpleGameScore('filler-ninja', metrics)
+    useGameStore.getState().addGameResult({ gameType: 'filler-ninja', score, metrics, timestamp: Date.now() })
+    useSessionStore.getState().markPromptUsed(prompt)
+    useSessionStore.getState().recordGame('filler-ninja')
+    const badges = useSessionStore.getState().checkBadges()
+    playGameComplete()
+    if (badges && badges.length > 0) playBadgeEarned()
+    nav('/score/filler')
+  }, [nav, prompt, stopMic, gameDuration, time])
+
+  finishRef.current = finishGame
+
   // Timer + streak counter — only ticks while user is speaking
   useEffect(() => {
     if (!ready) return
@@ -102,18 +124,7 @@ export default function FillerNinja() {
         setTime(p => {
           if (p <= 1) {
             clearInterval(t)
-            stopTranscription()
-            stopFillerDetection()
-            stopMic()
-            const metrics = { fillerCount: getFillerCount(), durationSeconds: gameDuration, longestStreakSeconds: Math.floor((Date.now() - lastFillerTime.current) / 1000) }
-            const score = computeSimpleGameScore('filler-ninja', metrics)
-            useGameStore.getState().addGameResult({ gameType: 'filler-ninja', score, metrics, timestamp: Date.now() })
-            useSessionStore.getState().markPromptUsed(prompt)
-            useSessionStore.getState().recordGame('filler-ninja')
-            const badges = useSessionStore.getState().checkBadges()
-            playGameComplete()
-            if (badges && badges.length > 0) playBadgeEarned()
-            nav('/score/filler')
+            finishRef.current()
             return 0
           }
           return p - 1
@@ -122,7 +133,7 @@ export default function FillerNinja() {
       }
     }, 1000)
     return () => clearInterval(t)
-  }, [nav, ready, stopMic])
+  }, [ready, config.silenceTimeout])
 
   if (!hasScans) return null
 
@@ -283,6 +294,22 @@ export default function FillerNinja() {
             </div>
           </div>
           <div style={{ marginTop: 16 }}><AudioWave /></div>
+
+          {/* Finish Early */}
+          {time < gameDuration - 10 && (
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              onClick={finishGame}
+              style={{
+                marginTop: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 12, padding: '8px 20px', fontSize: 13, fontWeight: 700,
+                color: 'rgba(255,255,255,0.4)', cursor: 'pointer',
+              }}
+            >
+              Finish Early
+            </motion.button>
+          )}
         </div>
       </div>
       <BottomBanner left={<div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 14, padding: '8px 16px', fontSize: 13, fontWeight: 600 }}>{comboTier ? `${comboTier.label}! ${multiplier}x multiplier` : streak > 0 ? 'Build your streak!' : 'Keep going!'}</div>} center={<div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><div style={{ fontSize: 22, fontWeight: 800 }}>{streak}s Streak</div><div style={{ fontSize: 11, fontWeight: 600, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>Filler-Free</div></div>} right={<><Zap size={14} /> Fillers: {fillers}</>} />

@@ -1,12 +1,20 @@
 /**
  * E3.R7 — Game Scoring Engine
- * Per-game scoring formulas. Simplified for demo.
+ * Per-game scoring formulas with smooth curves to avoid 0/100 extremes.
  */
 import type { GameType } from '../types'
 
 function clamp(v: number): number {
-  if (!isFinite(v)) return 0
+  if (!isFinite(v)) return 30
   return Math.max(0, Math.min(100, Math.round(v)))
+}
+
+/** Smooth curve: maps 0-1 input to 20-95 range with diminishing returns */
+function smoothScore(ratio: number, floor = 15, ceiling = 95): number {
+  const clamped = Math.max(0, Math.min(1, ratio))
+  // Ease-out curve: rises fast at first, then plateaus
+  const curved = 1 - Math.pow(1 - clamped, 1.8)
+  return floor + curved * (ceiling - floor)
 }
 
 interface FillerNinjaMetrics {
@@ -52,40 +60,55 @@ export function computeGameScore(metrics: GameMetrics): number {
     case 'filler-ninja': {
       const { fillerCount, durationSeconds, longestStreakSeconds } = metrics.data
       if (durationSeconds <= 0) return 50
-      const fillerPenalty = fillerCount * 15
-      const streakBonus = Math.min(30, longestStreakSeconds)
-      return clamp(100 - fillerPenalty + streakBonus)
+      // Fillers per minute — normalized metric
+      const fillersPerMin = (fillerCount / durationSeconds) * 60
+      // 0 fillers/min → ~90, 2/min → ~70, 5/min → ~45, 10/min → ~25
+      const baseScore = Math.max(15, 95 - fillersPerMin * 8)
+      // Streak bonus: up to +10 for long filler-free runs
+      const streakBonus = Math.min(10, longestStreakSeconds * 0.3)
+      return clamp(baseScore + streakBonus)
     }
     case 'eye-lock': {
       const { gazeLockedPercent, longestGazeSeconds } = metrics.data
-      const gazeScore = gazeLockedPercent
-      const streakBonus = Math.min(15, longestGazeSeconds * 0.5)
-      return clamp(gazeScore + streakBonus)
+      // Smooth curve: 0% → 15, 50% → ~55, 80% → ~80, 100% → ~90
+      const baseScore = smoothScore(gazeLockedPercent / 100, 15, 90)
+      // Streak bonus: up to +10
+      const streakBonus = Math.min(10, longestGazeSeconds * 0.3)
+      return clamp(baseScore + streakBonus)
     }
     case 'pace-racer': {
       const { timeInZoneSeconds, totalSeconds, avgWpm } = metrics.data
       if (totalSeconds <= 0) return 50
       if (timeInZoneSeconds === 0 && avgWpm === 0) return 15
-      const zoneScore = (timeInZoneSeconds / totalSeconds) * 100
-      return clamp(Math.max(10, zoneScore))
+      const zoneRatio = timeInZoneSeconds / totalSeconds
+      // Smooth curve: 0% → 15, 30% → ~45, 60% → ~70, 100% → ~95
+      return clamp(smoothScore(zoneRatio))
     }
     case 'pitch-surfer': {
       const { pitchVariation, monotoneSeconds, totalSeconds } = metrics.data
       if (totalSeconds <= 0) return 50
-      const variationScore = Math.min(60, pitchVariation * 3)
-      const monotonePenalty = (monotoneSeconds / totalSeconds) * 60
-      return clamp(variationScore + 40 - monotonePenalty)
+      // Pitch variation score: typical good speech is 15-40Hz std dev
+      // 0 → 15, 10 → ~45, 20 → ~65, 30+ → ~80
+      const variationRatio = Math.min(1, pitchVariation / 35)
+      const baseScore = smoothScore(variationRatio, 15, 85)
+      // Monotone penalty: proportional to time spent monotone
+      const monotoneRatio = monotoneSeconds / totalSeconds
+      const penalty = monotoneRatio * 25
+      return clamp(baseScore - penalty + 10) // +10 base boost
     }
     case 'statue-mode': {
       const { stillnessPercent, movementAlerts, avgPresenceScore, presenceStreakSeconds, badHabitCount } = metrics.data
       // New scoring when presence data available
       if (avgPresenceScore != null) {
-        const streakBonus = Math.min(20, (presenceStreakSeconds ?? 0) * 0.5)
-        const habitPenalty = (badHabitCount ?? 0) * 3
-        return clamp(avgPresenceScore + streakBonus - habitPenalty)
+        const baseScore = smoothScore(avgPresenceScore / 100, 20, 90)
+        const streakBonus = Math.min(10, (presenceStreakSeconds ?? 0) * 0.3)
+        const habitPenalty = Math.min(20, (badHabitCount ?? 0) * 3)
+        return clamp(baseScore + streakBonus - habitPenalty)
       }
-      // Fallback: original formula
-      return clamp(stillnessPercent - movementAlerts * 8)
+      // Fallback: original formula with smooth curve
+      const baseScore = smoothScore(stillnessPercent / 100, 20, 90)
+      const penalty = Math.min(30, movementAlerts * 4)
+      return clamp(baseScore - penalty)
     }
   }
 }
@@ -94,7 +117,7 @@ export function computeGameScore(metrics: GameMetrics): number {
 export function computeSimpleGameScore(gameType: GameType, metrics: Record<string, number>): number {
   switch (gameType) {
     case 'filler-ninja':
-      return computeGameScore({ type: 'filler-ninja', data: { fillerCount: metrics.fillerCount ?? 0, durationSeconds: metrics.durationSeconds ?? 90, longestStreakSeconds: metrics.longestStreakSeconds ?? 0 } })
+      return computeGameScore({ type: 'filler-ninja', data: { fillerCount: metrics.fillerCount ?? 0, durationSeconds: metrics.durationSeconds ?? 60, longestStreakSeconds: metrics.longestStreakSeconds ?? 0 } })
     case 'eye-lock':
       return computeGameScore({ type: 'eye-lock', data: { gazeLockedPercent: metrics.gazeLockedPercent ?? 0, longestGazeSeconds: metrics.longestGazeSeconds ?? 0 } })
     case 'pace-racer':
