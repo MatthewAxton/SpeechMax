@@ -64,6 +64,7 @@ export default function MikeChat() {
   }, [showIntro])
 
   const handleSend = useCallback(async () => {
+    console.log('[MikeChat] handleSend called, input:', input, 'loading:', loading)
     const trimmed = input.trim()
     if (!trimmed || loading) return
 

@@ -1,5 +1,3 @@
-import { supabase } from './supabase'
-
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 
 interface GeminiMessage {
@@ -9,10 +7,7 @@ interface GeminiMessage {
 
 export async function sendToGemini(messages: GeminiMessage[]): Promise<string> {
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return "Not authenticated. Please refresh the page."
-    }
+    const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 30000)
@@ -21,8 +16,8 @@ export async function sendToGemini(messages: GeminiMessage[]): Promise<string> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+        'Authorization': `Bearer ${ANON_KEY}`,
+        'apikey': ANON_KEY,
       },
       body: JSON.stringify({
         contents: messages.map((m) => ({
@@ -35,9 +30,10 @@ export async function sendToGemini(messages: GeminiMessage[]): Promise<string> {
 
     clearTimeout(timeout)
 
+    console.log('[Gemini] Response status:', res.status)
     if (!res.ok) {
       const errText = await res.text()
-      console.error('Gemini proxy error:', res.status, errText)
+      console.error('[Gemini] Proxy error:', res.status, errText)
       return "Sorry, I'm having trouble connecting right now. Try again in a moment!"
     }
 
@@ -45,7 +41,7 @@ export async function sendToGemini(messages: GeminiMessage[]): Promise<string> {
     return data.candidates?.[0]?.content?.parts?.[0]?.text
       ?? "Hmm, I didn't get a response. Try asking again!"
   } catch (err) {
-    console.error('Gemini fetch error:', err)
+    console.error('[Gemini] Fetch error:', err)
     return "Sorry, I'm having trouble connecting right now. Try again in a moment!"
   }
 }

@@ -56,7 +56,7 @@ export async function loadUserData() {
 
   // Fetch all 3 tables in parallel
   const [profileRes, scansRes, gamesRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
+    supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
     supabase.from('scan_results').select('*').eq('user_id', user.id).order('timestamp', { ascending: true }),
     supabase.from('game_results').select('*').eq('user_id', user.id).order('timestamp', { ascending: true }),
   ])
