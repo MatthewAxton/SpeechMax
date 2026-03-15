@@ -1,11 +1,8 @@
 # CLAUDE.md — SpeechMAX Project Instructions
 
-## Git Rules (NON-NEGOTIABLE)
+## Git Rules
 
-- **Working branch:** `bruno/master-plan`
-- **NEVER push to `main`** — all pushes go to `bruno/master-plan` only
-- **Push command:** `git push origin bruno/master-plan`
-- **PRs:** When ready, open PR from `bruno/master-plan` → `main`. Do not merge directly.
+- **Working branch:** `main`
 - Commit after each completed sprint task with a descriptive message.
 
 ## Sprint Workflow (NON-NEGOTIABLE)
@@ -19,7 +16,7 @@
 
 ## Project Overview
 
-SpeechMAX is a browser-based AI speech coach (UNIHACK 2026). React + TypeScript + Vite. Uses Web Speech API, Web Audio API, and MediaPipe for real-time speech analysis.
+SpeechMAX is a browser-based AI speech coach (UNIHACK 2026). React + TypeScript + Vite. Uses Web Speech API, Web Audio API, and MediaPipe for real-time speech analysis. Supabase for auth, database, and API key security.
 
 ## Master Plan
 
@@ -28,12 +25,22 @@ All implementation work follows `masterplan.md` in the project root. Reference i
 ## Tech Stack
 
 - React 18 + TypeScript + Vite
-- Zustand 5.x for state management (with `zustand/middleware` persist)
+- Zustand 5.x for state management (with `zustand/middleware` persist + Supabase sync)
+- Supabase (Auth, PostgreSQL, Edge Functions)
 - MediaPipe (FaceLandmarker, PoseLandmarker) for gaze + pose tracking
 - Web Speech API for transcription
 - Web Audio API for pitch analysis
 - Framer Motion for animations
 - React Router v6
+
+## Supabase (NON-NEGOTIABLE)
+
+- **Project ID:** `mqidbueexomhpeejvnry` (speechMAX). NEVER touch any other Supabase project.
+- **Auth:** Anonymous sign-in (automatic) + Google OAuth
+- **Tables:** `profiles`, `scan_results`, `game_results` — all with RLS
+- **Edge Functions:** `gemini-proxy` — JWT-authed proxy for Gemini API
+- **Secrets:** `GEMINI_API_KEY` stored as Supabase secret (never in client `.env`)
+- **Frontend env:** Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env`
 
 ## Design Rules (NON-NEGOTIABLE)
 
@@ -45,15 +52,20 @@ All implementation work follows `masterplan.md` in the project root. Reference i
 
 ## Key Architecture
 
-- **Stores:** `src/store/{scanStore,gameStore,sessionStore}.ts`
+- **Auth:** `src/lib/auth.tsx` (AuthProvider + useAuth hook)
+- **Supabase Client:** `src/lib/supabase.ts` (singleton)
+- **Data Sync:** `src/lib/supabaseSync.ts` (fire-and-forget sync + localStorage migration)
+- **Gemini:** `src/lib/geminiClient.ts` (calls edge function, NOT direct Gemini API)
+- **Stores:** `src/store/{scanStore,gameStore,sessionStore}.ts` (all sync to Supabase)
 - **Screens:** `src/gamification/screens/*.tsx`
 - **Game Intros:** Each game has built-in `GameIntro` phase (no shared Countdown)
-- **Shared Components:** `src/gamification/components/{GameIntro,Banner,CameraFeed,AudioWave,RadarChart}*.tsx`
+- **Shared Components:** `src/gamification/components/{GameIntro,Banner,CameraFeed,AudioWave,RadarChart,MikeChat}*.tsx`
 - **Analysis:** `src/analysis/{speech,audio,mediapipe}/*.ts`
 - **Scoring:** `src/analysis/scoring/{radarScorer,gameScorer}.ts`
 - **Sounds:** `src/lib/sounds.ts` (oscillator-based, no .mp3 files)
 - **Layout:** `src/gamification/GamificationLayout.tsx` wraps all gamification routes
-- **Homepage:** Defined inline in `src/App.tsx` (dark theme, separate from gamification)
+- **Homepage:** Defined inline in `src/App.tsx` (dark theme, auth flow)
+- **Edge Function:** `supabase/functions/gemini-proxy/index.ts`
 
 ## Audio Pipeline
 

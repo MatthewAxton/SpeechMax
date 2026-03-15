@@ -1,13 +1,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+// Find the Gemini key — handles trailing space in secret name
+function getGeminiKey(): string | undefined {
+  const envObj = Deno.env.toObject();
+  for (const [key, value] of Object.entries(envObj)) {
+    if (key.trim() === 'GEMINI_API_KEY') return value;
+  }
+  return undefined;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -21,12 +27,16 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const GEMINI_API_KEY = getGeminiKey();
+
   if (!GEMINI_API_KEY) {
     return new Response(JSON.stringify({ error: 'GEMINI_API_KEY not configured' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
+
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
   try {
     const body = await req.json();

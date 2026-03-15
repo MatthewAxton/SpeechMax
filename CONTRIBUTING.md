@@ -8,11 +8,14 @@ cd HackathonTest
 npm install
 ```
 
-Create a `.env` file with your Gemini API key:
+Create a `.env` file:
 
 ```
-VITE_GEMINI_API_KEY=your_gemini_api_key_here
+VITE_SUPABASE_URL=https://mqidbueexomhpeejvnry.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xaWRidWVleG9taHBlZWp2bnJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NDQwNDgsImV4cCI6MjA4OTEyMDA0OH0.dYObvhC-MKAxCiLZ2c_WkpXgQp8USlWi6X2w3aVSFiU
 ```
+
+> **No Gemini API key needed.** The key is stored as a Supabase Edge Function secret. Mike's AI chat routes through `gemini-proxy` server-side.
 
 Then start the dev server:
 
@@ -26,7 +29,7 @@ Open **http://localhost:5173** in Chrome (camera/mic features require Chrome).
 
 ```
 src/
-  App.tsx                          # Routing + homepage (dark theme)
+  App.tsx                          # Routing + homepage + auth flow
   index.css                        # Global styles + Tailwind dark tokens
   components/                      # Homepage components
   gamification/                    # All game features (dark theme)
@@ -39,8 +42,7 @@ src/
       CameraFeed.tsx               # Live webcam (supports fullscreen mode)
       AudioWave.tsx                # Audio visualizer
       Mike.tsx                     # Mascot component + TalkingBubble
-      MikeChat.tsx                 # AI chat widget (Gemini 2.5 Flash)
-      DevMenu.tsx                  # Dev navigation (dev only)
+      MikeChat.tsx                 # AI chat widget (Gemini via Supabase Edge Function)
       EyeContactIndicator.tsx      # Gaze tracking overlay
       radar-chart/                 # Reusable radar chart
     screens/
@@ -51,10 +53,15 @@ src/
       EyeLock.tsx                  # Confidence game (fullscreen camera)
       PaceRacer.tsx                # Pacing game (has built-in intro)
       PitchSurfer.tsx              # Expression game (has built-in intro)
-      StatueMode.tsx               # Composure game (fullscreen camera)
+      StagePresence.tsx            # Composure game (fullscreen camera)
       ScoreCard.tsx                # Post-game results + coaching tips
+      Onboarding.tsx               # First-time user flow (skips if returning user)
       Progress.tsx                 # Stats, badges, personal bests
-      Onboarding.tsx               # First-time user flow
+      History.tsx                  # Scan + game timeline
+      Practice.tsx                 # Free practice mode
+      Library.tsx                  # Prompt library with favorites
+      Insights.tsx                 # Weekly insights + trend analysis
+      Settings.tsx                 # Account, devices, sound, difficulty, reset
     hooks/
       useRequireScan.ts            # Route guard — redirects to /scan if no scan
   analysis/                        # Real-time analysis pipeline
@@ -68,24 +75,35 @@ src/
     scoring/gameScorer.ts          # Per-game scoring formulas
     hooks/useMicrophone.ts         # Mic access with noise suppression
     hooks/useEyeContact.ts         # Eye tracking React hook
-  store/                           # Zustand state (all persisted to localStorage)
-    scanStore.ts                   # Scan history & radar scores
-    gameStore.ts                   # Game results & difficulty scaling
-    sessionStore.ts                # Badges, streaks, personal bests
+  store/                           # Zustand state (persisted to localStorage + synced to Supabase)
+    scanStore.ts                   # Scan history & radar scores (syncs scan_results)
+    gameStore.ts                   # Game results & difficulty scaling (syncs game_results)
+    sessionStore.ts                # Badges, streaks, personal bests (syncs profiles)
   lib/
+    supabase.ts                    # Supabase client singleton
+    auth.tsx                       # AuthProvider + useAuth hook (anonymous + Google OAuth)
+    supabaseSync.ts                # DB sync helpers + localStorage migration
+    geminiClient.ts                # Gemini API client (calls Edge Function, not direct)
+    buildMikeSystemPrompt.ts       # Mike's system prompt with user data
     badges.ts                      # 11 badge definitions
     prompts.ts                     # Speaking prompts by category
     sounds.ts                      # Oscillator-based sound FX
-    geminiClient.ts                # Gemini API client (reads key from .env)
-    buildMikeSystemPrompt.ts       # Mike's system prompt with user data
-    goalPromptMap.ts               # Maps UserGoal → PromptCategory
+    goalPromptMap.ts               # Maps UserGoal -> PromptCategory
+    goalConfig.ts                  # Goal-specific tips + focus axes
+    dateUtils.ts                   # Relative time formatting
+    insightGenerator.ts            # Weekly insight generation
+    renderShareCard.ts             # Canvas share card renderer
+supabase/
+  functions/
+    gemini-proxy/index.ts          # Edge Function: JWT-authed Gemini API proxy
 ```
 
 ## User Flow
 
 ```
 / (Homepage)
-  -> START PRACTICING -> Goal Select -> /onboarding
+  -> Continue with Google -> /onboarding (or /queue if returning)
+  -> Continue as Guest -> /onboarding
     -> /scan (30s speech scan, fullscreen camera)
       -> /results (Radar chart + axis breakdown)
         -> /queue (Game dashboard)
@@ -95,14 +113,19 @@ src/
           -> /pitch-surfer (intro -> 3-2-1 -> game -> /score/pitch)
           -> /statue-mode (intro -> 3-2-1 -> game -> /score/statue)
         -> /progress (Stats, badges, personal bests)
+        -> /history (Scan + game timeline)
+        -> /library (Prompt browser + favorites)
+        -> /insights (Weekly trends)
+        -> /settings (Account, devices, reset)
+        -> /practice (Free practice mode)
 ```
 
 ## Routes
 
 | Route | Screen | Notes |
 |-------|--------|-------|
-| `/` | Homepage + Goal Select | Dark theme |
-| `/onboarding` | First-time setup | |
+| `/` | Homepage | Auth buttons (Google / Guest) |
+| `/onboarding` | First-time setup | Skips if returning user with goal set |
 | `/scan` | Radar Scan | Fullscreen camera |
 | `/results` | Radar Results | Axis breakdown |
 | `/queue` | Game Dashboard | Radar + game list |
@@ -110,9 +133,34 @@ src/
 | `/eye-lock` | Eye Lock | Fullscreen camera + glass HUD |
 | `/pace-racer` | Pace Racer | Built-in intro screen |
 | `/pitch-surfer` | Pitch Surfer | Built-in intro screen |
-| `/statue-mode` | Statue Mode | Fullscreen camera + glass HUD |
+| `/statue-mode` | Stage Presence | Fullscreen camera + glass HUD |
 | `/score/:game` | Score Card | Coaching tips |
 | `/progress` | Progress | Stats + badges |
+| `/history` | History | Scan + game timeline |
+| `/library` | Library | Prompt browser |
+| `/insights` | Insights | Weekly trends |
+| `/settings` | Settings | Account + devices |
+| `/practice` | Practice | Free practice mode |
+
+## Backend (Supabase)
+
+### Database Tables
+
+| Table | Purpose | RLS |
+|-------|---------|-----|
+| `profiles` | User preferences, streaks, badges, personal bests | Users can read/insert/update own row |
+| `scan_results` | Speech scan scores + raw data | Users can read/insert own rows |
+| `game_results` | Game scores + metrics | Users can read/insert own rows |
+
+### Auth
+
+- **Anonymous auth** — automatic on first visit (zero friction for hackathon judges)
+- **Google OAuth** — sign in to sync across devices
+- Profile auto-created via database trigger on signup
+
+### Edge Functions
+
+- `gemini-proxy` — validates JWT, reads `GEMINI_API_KEY` from Supabase secrets, forwards to Gemini 2.5 Flash
 
 ## Design System
 
@@ -135,4 +183,9 @@ npm run build       # Production build
 npm run preview     # Preview production build
 ```
 
-Deployment: **Vercel** (auto-deploys on push to `main`).
+### Vercel Deployment
+
+1. Push to GitHub
+2. Import into Vercel
+3. Add env vars: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+4. Deploy — no other config needed

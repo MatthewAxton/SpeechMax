@@ -22,6 +22,7 @@ export async function sendToGemini(messages: GeminiMessage[]): Promise<string> {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY as string,
       },
       body: JSON.stringify({
         contents: messages.map((m) => ({

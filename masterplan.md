@@ -365,17 +365,64 @@ API key moved from hardcoded string to `VITE_GEMINI_API_KEY` env var. `.env` add
 
 ---
 
+## Sprint 14: Supabase Backend Integration [COMPLETE]
+
+> Added Supabase for auth, database, API key security, and data sync. Replaced client-side Gemini API key with server-side edge function proxy.
+
+### 14.1 — Database schema + RLS [DONE]
+
+Applied migration creating `profiles`, `scan_results`, `game_results` tables with row-level security. Auto-create profile trigger on user signup.
+
+### 14.2 — Supabase client + AuthProvider [DONE]
+
+Created `src/lib/supabase.ts` (client singleton) and `src/lib/auth.tsx` (AuthProvider with anonymous sign-in + Google OAuth). Wrapped `<App>` in `<AuthProvider>`. Zero-friction anonymous auth for hackathon judges.
+
+### 14.3 — Gemini proxy edge function [DONE]
+
+Deployed `gemini-proxy` edge function to Supabase. Validates JWT, reads `GEMINI_API_KEY` from Supabase secrets, forwards to Gemini 2.5 Flash. Rewrote `geminiClient.ts` to call edge function instead of direct Gemini API. Removed `VITE_GEMINI_API_KEY` from client bundle entirely.
+
+### 14.4 — Data sync + localStorage migration [DONE]
+
+Created `src/lib/supabaseSync.ts` with fire-and-forget sync helpers. Added sync calls to all 3 stores: `syncScanResult()` in scanStore, `syncGameResult()` in gameStore, `debouncedSyncProfile()` in sessionStore. One-time localStorage→Supabase migration on first auth.
+
+### 14.5 — Homepage auth flow [DONE]
+
+Replaced single "START PRACTICING" button with "Continue with Google" + "Continue as Guest" auth options. Returning Google users auto-redirect to dashboard. Guest users always see onboarding on first use.
+
+### 14.6 — Settings account section [DONE]
+
+Added Account card to Settings: anonymous users see "Guest User" with Google sign-in CTA, authenticated users see avatar, name, email, "Synced" badge, and sign-out button.
+
+### 14.7 — Mike chat fixes [DONE]
+
+- Talking.gif shows in chat header during responses
+- try/catch/finally prevents stuck "Mike is typing" state
+- 30s fetch timeout on Gemini proxy calls
+- Stricter system prompt: 1 sentence, max 15 words
+- Edge function handles trailing-space secret name
+
+### 14.8 — Removed DevMenu [DONE]
+
+Removed DevMenu component from App.tsx. No longer rendered in any environment.
+
+**Files created:** `src/lib/supabase.ts`, `src/lib/auth.tsx`, `src/lib/supabaseSync.ts`, `supabase/functions/gemini-proxy/index.ts`
+**Files modified:** `src/App.tsx`, `src/lib/geminiClient.ts`, `src/store/scanStore.ts`, `src/store/gameStore.ts`, `src/store/sessionStore.ts`, `src/gamification/screens/Settings.tsx`, `src/gamification/screens/Onboarding.tsx`, `src/gamification/components/MikeChat.tsx`, `src/lib/buildMikeSystemPrompt.ts`, `.env`, `package.json`
+
+---
+
 ## Key Architecture
 
 | Area | Files |
 |------|-------|
-| **Stores** | `src/store/{scanStore,gameStore,sessionStore}.ts` |
+| **Auth** | `src/lib/{auth,supabase,supabaseSync}.tsx` |
+| **Stores** | `src/store/{scanStore,gameStore,sessionStore}.ts` (all sync to Supabase) |
 | **Game Screens** | `src/gamification/screens/*.tsx` |
-| **Shared Components** | `src/gamification/components/{GameIntro,CountdownOverlay,Banner,CameraFeed,AudioWave,RadarChart}` |
+| **Shared Components** | `src/gamification/components/{GameIntro,CountdownOverlay,Banner,CameraFeed,AudioWave,RadarChart,MikeChat}` |
 | **Analysis** | `src/analysis/{speech,audio,mediapipe}/*.ts` |
 | **Scoring** | `src/analysis/scoring/{radarScorer,gameScorer}.ts` |
 | **Sounds** | `src/lib/sounds.ts` |
 | **Badges/Prompts** | `src/lib/{badges,prompts}.ts` |
+| **AI Coach** | `src/lib/{geminiClient,buildMikeSystemPrompt}.ts` + `supabase/functions/gemini-proxy/` |
 | **Utilities** | `src/lib/{dateUtils,goalConfig,insightGenerator,renderShareCard}.ts` |
 | **Support Pages** | `src/gamification/screens/{History,Practice,Library,Insights,Settings}.tsx` |
 
