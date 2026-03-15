@@ -63,9 +63,11 @@ export function computeGameScore(metrics: GameMetrics): number {
       return clamp(gazeScore + streakBonus)
     }
     case 'pace-racer': {
-      const { timeInZoneSeconds, totalSeconds } = metrics.data
+      const { timeInZoneSeconds, totalSeconds, avgWpm } = metrics.data
       if (totalSeconds <= 0) return 50
-      return clamp((timeInZoneSeconds / totalSeconds) * 100)
+      if (timeInZoneSeconds === 0 && avgWpm === 0) return 15
+      const zoneScore = (timeInZoneSeconds / totalSeconds) * 100
+      return clamp(Math.max(10, zoneScore))
     }
     case 'pitch-surfer': {
       const { pitchVariation, monotoneSeconds, totalSeconds } = metrics.data
