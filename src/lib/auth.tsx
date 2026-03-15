@@ -7,6 +7,11 @@ interface AuthContextValue {
   user: User | null
   session: Session | null
   isLoading: boolean
+  isAnonymous: boolean
+  displayName: string | null
+  avatarUrl: string | null
+  email: string | null
+  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -14,11 +19,30 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   session: null,
   isLoading: true,
+  isAnonymous: true,
+  displayName: null,
+  avatarUrl: null,
+  email: null,
+  signInWithGoogle: async () => {},
   signOut: async () => {},
 })
 
 export function useAuth() {
   return useContext(AuthContext)
+}
+
+function getUserInfo(user: User | null) {
+  if (!user) return { isAnonymous: true, displayName: null, avatarUrl: null, email: null }
+
+  const isAnonymous = user.is_anonymous ?? !user.email
+  const meta = user.user_metadata ?? {}
+
+  return {
+    isAnonymous,
+    displayName: (meta.full_name ?? meta.name ?? null) as string | null,
+    avatarUrl: (meta.avatar_url ?? meta.picture ?? null) as string | null,
+    email: user.email ?? null,
+  }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -41,22 +65,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(s?.user ?? null)
 
       if (s?.user) {
-        // User already authenticated — hydrate stores
         migrateLocalStorage(s.user.id).then(() => hydrate())
       } else {
-        // No session — sign in anonymously for zero-friction UX
         supabase.auth.signInAnonymously().then(({ error }) => {
           if (error) {
             console.error('Anonymous sign-in failed:', error)
           }
-          // onAuthStateChange will handle the rest
         })
       }
 
       setIsLoading(false)
     })
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, s) => {
         setSession(s)
@@ -74,14 +94,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [hydrate])
 
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/queue',
+      },
+    })
+    if (error) console.error('Google sign-in failed:', error)
+  }, [])
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut()
     setUser(null)
     setSession(null)
   }, [])
 
+  const { isAnonymous, displayName, avatarUrl, email } = getUserInfo(user)
+
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, isAnonymous, displayName, avatarUrl, email, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   )
